@@ -9,14 +9,16 @@ use std::os::unix::fs::PermissionsExt;
 mod bindgen;
 #[path = "build/compile.rs"]
 mod compile;
+#[cfg(feature = "download")]
 #[path = "build/download.rs"]
 mod download;
 #[path = "build/options.rs"]
 mod options;
 
 use bindgen::{mnn_c_bindgen, mnn_cpp_bindgen};
-use compile::{build_cmake, mnn_c_build, prebuilt_lib_link};
-use download::{download_mnn_source, download_prebuilt_mnn};
+use compile::{build_cmake, mnn_c_build};
+#[cfg(feature = "download")]
+use download::{download_mnn_source, download_prebuilt_mnn, prebuilt_lib_link};
 use options::{
     HALIDE_SEARCH, MANIFEST_DIR, MNN_COMPILE, TARGET_OS, TRACING_REPLACE, TRACING_SEARCH, VENDOR,
 };
@@ -39,6 +41,7 @@ fn main() -> Result<()> {
     let out_dir = PathBuf::from(std::env::var("OUT_DIR")?);
     println!("cargo:rerun-if-changed=build.rs");
     println!("cargo:rerun-if-changed=build/options.rs");
+    #[cfg(feature = "download")]
     println!("cargo:rerun-if-changed=build/download.rs");
     println!("cargo:rerun-if-changed=build/bindgen.rs");
     println!("cargo:rerun-if-changed=build/compile.rs");
@@ -49,7 +52,8 @@ fn main() -> Result<()> {
             .unwrap_or_else(|| VENDOR.into()),
     );
 
-    if cfg!(feature = "download") {
+    #[cfg(feature = "download")]
+    {
         let version = std::env::var("MNN_VERSION").unwrap_or_else(|_| "3.4.0".to_string());
         download_prebuilt_mnn(&version, &out_dir).with_context(|| {
             format!(

@@ -22,7 +22,7 @@ pub static MNN_COMPILE: LazyLock<bool> = LazyLock::new(|| {
 pub const HALIDE_SEARCH: &str =
     r#"HALIDE_ATTRIBUTE_ALIGN(1) halide_type_code_t code; // halide_type_code_t"#;
 
-pub const TRACING_SEARCH: &str = 
+pub const TRACING_SEARCH: &str =
     "#define MNN_PRINT(format, ...) printf(format, ##__VA_ARGS__)\n#define MNN_ERROR(format, ...) printf(format, ##__VA_ARGS__)";
 
 pub const TRACING_REPLACE: &str = r#"

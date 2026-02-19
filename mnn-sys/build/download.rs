@@ -3,7 +3,23 @@ use std::path::Path;
 use anyhow::*;
 use sha2::Digest as _;
 
-use crate::options::{CHECKSUMS, SUFFIXES, TARGET_ARCH, TARGET_OS};
+use crate::options::{TARGET_ARCH, TARGET_OS};
+
+pub const SUFFIXES: [&str; 5] = [
+    "android_armv7_armv8_cpu_opencl_vulkan",
+    "ios_armv82_cpu_metal_coreml",
+    "linux_x64_cpu_opencl",
+    "windows_x64_cpu_opencl",
+    "macos_x64_arm82_cpu_opencl_metal",
+];
+
+pub const CHECKSUMS: [&str; 5] = [
+    "sha256:f85050dfcab114da9d389c3a4dcde8421cdce5a767aab5dbd1a5f0debc8b704a",
+    "sha256:2405ef73ab406844be9d16768a82dd76bec7aefaf05634eaad2f5d7202587aa0",
+    "sha256:db42a3ed0eb4af791c872afc0fc82d9a13236a834c557c679fe4c9e39209129b",
+    "sha256:2243dfea8e8364beed3fccb5be17b804d89feae91cbdd4ce577f147347f07555",
+    "sha256:2bb04d451fe7587107d970322cbc80083c381bc50b06dd3ae3f2349eb5c82a89",
+];
 
 const USER_AGENT: &str = concat!("mnn-rs-build/", env!("CARGO_PKG_VERSION"));
 
@@ -187,4 +203,71 @@ pub fn download_mnn_source(
         })?;
 
     Ok(subdir)
+}
+
+pub fn prebuilt_lib_link(out_dir: impl AsRef<Path>) -> Result<()> {
+    use build_target::Arch;
+
+    let prebuilt_dir = out_dir.as_ref().join("mnn_prebuilt");
+    let is_debug = cfg!(debug_assertions);
+    let debug_string = if is_debug { "Debug" } else { "Release" };
+
+    match (&*crate::options::TARGET_ARCH, &*TARGET_OS) {
+        (Arch::AArch64 | Arch::Arm, build_target::Os::Android) => {
+            let arch = if *crate::options::TARGET_ARCH == Arch::Arm {
+                "armeabi-v7a"
+            } else {
+                "arm64-v8a"
+            };
+            println!(
+                "cargo:rustc-link-search={}",
+                prebuilt_dir.join(arch).display()
+            );
+            println!("cargo:rustc-link-lib=dylib=MNN");
+            println!("cargo:rustc-link-lib=dylib=MNN_Vulkan");
+            println!("cargo:rustc-link-lib=dylib=MNN_CL");
+            println!("cargo:rustc-link-lib=dylib=c++_shared");
+            println!("cargo:rustc-link-lib=dylib=mnncore");
+        }
+        (Arch::AArch64, build_target::Os::iOS) => {
+            println!(
+                "cargo:rustc-link-search={}",
+                prebuilt_dir.join("Static").display()
+            );
+            println!("cargo:rustc-link-lib=dylib=MNN");
+        }
+        (Arch::X86_64, build_target::Os::Linux) => {
+            println!(
+                "cargo:rustc-link-search={}",
+                prebuilt_dir.join("lib").join(debug_string).display()
+            );
+            println!("cargo:rustc-link-lib=static=MNN");
+        }
+        (Arch::X86_64, build_target::Os::Windows) => {
+            let crt = if cfg!(feature = "crt_static") {
+                "MT"
+            } else {
+                "MD"
+            };
+            println!(
+                "cargo:rustc-link-search={}",
+                prebuilt_dir
+                    .join("lib")
+                    .join("Release")
+                    .join("static")
+                    .join(crt)
+                    .display()
+            );
+            println!("cargo:rustc-link-lib=static=MNN");
+        }
+        (Arch::X86_64 | Arch::AArch64, build_target::Os::MacOS) => {
+            println!(
+                "cargo:rustc-link-search={}",
+                prebuilt_dir.join("Static").display()
+            );
+            println!("cargo:rustc-link-lib=MNN");
+        }
+        (arch, os) => anyhow::bail!("Prebuilt MNN is not available for target {}-{}", arch, os),
+    };
+    Ok(())
 }

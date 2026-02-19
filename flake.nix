@@ -89,6 +89,7 @@
             llvmPackages.libclang.lib
             clang
             pkg-config
+            openssl
           ];
           buildInputs = with pkgs;
             []
