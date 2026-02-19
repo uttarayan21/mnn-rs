@@ -49,22 +49,6 @@ void mnn_ffi_emit(const char *file, size_t line, Level level,
   }
 "#;
 
-pub const SUFFIXES: [&str; 5] = [
-    "android_armv7_armv8_cpu_opencl_vulkan",
-    "ios_armv82_cpu_metal_coreml",
-    "linux_x64_cpu_opencl",
-    "windows_x64_cpu_opencl",
-    "macos_x64_arm82_cpu_opencl_metal",
-];
-
-pub const CHECKSUMS: [&str; 5] = [
-    "sha256:f85050dfcab114da9d389c3a4dcde8421cdce5a767aab5dbd1a5f0debc8b704a",
-    "sha256:2405ef73ab406844be9d16768a82dd76bec7aefaf05634eaad2f5d7202587aa0",
-    "sha256:db42a3ed0eb4af791c872afc0fc82d9a13236a834c557c679fe4c9e39209129b",
-    "sha256:2243dfea8e8364beed3fccb5be17b804d89feae91cbdd4ce577f147347f07555",
-    "sha256:2bb04d451fe7587107d970322cbc80083c381bc50b06dd3ae3f2349eb5c82a89",
-];
-
 #[derive(Debug, Clone, Copy)]
 pub enum CxxOptionValue {
     On,
