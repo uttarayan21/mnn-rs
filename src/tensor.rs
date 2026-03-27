@@ -1,7 +1,8 @@
 use crate::prelude::*;
 use core::marker::PhantomData;
 use mnn_sys::*;
-pub(crate) mod list;
+/// Tensor list and iteration utilities
+pub mod list;
 mod raw;
 pub use raw::RawTensor;
 
@@ -503,6 +504,31 @@ where
             }
         };
         debug_assert!(!tensor.is_null());
+        Self {
+            tensor,
+            __marker: PhantomData,
+        }
+    }
+
+    /// Create a new tensor with the specified shape and dimension type and fill it with the data from the provided vector
+    pub fn from_shape_vec(shape: impl AsTensorShape, dm_type: DimensionType, data: Vec<H>) -> Self {
+        let shape = shape.as_tensor_shape();
+        assert_eq!(
+            shape.tensor_size(),
+            data.len(),
+            "Data length does not match tensor shape"
+        );
+        let tensor = unsafe {
+            Tensor_createWith(
+                shape.shape.as_ptr(),
+                shape.size,
+                halide_type_of::<H>(),
+                data.as_ptr().cast_mut().cast(),
+                dm_type.to_mnn_sys(),
+            )
+        };
+        debug_assert!(!tensor.is_null());
+        core::mem::forget(data);
         Self {
             tensor,
             __marker: PhantomData,

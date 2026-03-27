@@ -2,6 +2,7 @@
 use crate::{prelude::*, Device, RawTensor, Tensor, View};
 use mnn_sys::HalideType;
 
+/// A list of tensors returned by interpreter input/output queries
 #[repr(transparent)]
 pub struct TensorList<'t> {
     pub(crate) inner: *const mnn_sys::TensorInfoArray,
@@ -50,6 +51,7 @@ impl<'t> TensorList<'t> {
         }
     }
 
+    /// Get a mutable reference to the tensor at the given index
     pub fn get_mut(&mut self, index: usize) -> Option<TensorInfoMut<'t, '_>> {
         if index >= self.size() {
             None
@@ -74,6 +76,7 @@ impl<'t> TensorList<'t> {
         }
     }
 
+    /// Get a mutable iterator over the tensor list
     pub fn iter_mut<'tl>(&'tl mut self) -> TensorListIterMut<'t, 'tl> {
         TensorListIterMut {
             tensor_list: self,
@@ -94,6 +97,7 @@ impl<'t, 'tl: 't> IntoIterator for &'tl TensorList<'t> {
     }
 }
 
+/// Iterator over tensor list
 pub struct TensorListIter<'t, 'tl> {
     tensor_list: &'tl TensorList<'t>,
     idx: usize,
@@ -108,6 +112,7 @@ impl<'t, 'tl> Iterator for TensorListIter<'t, 'tl> {
     }
 }
 
+/// Mutable iterator over tensor list
 pub struct TensorListIterMut<'t, 'tl> {
     tensor_list: &'tl mut TensorList<'t>,
     idx: usize,
@@ -131,6 +136,7 @@ impl<'t, 'tl> Iterator for TensorListIterMut<'t, 'tl> {
     }
 }
 
+/// Information about a tensor in a tensor list
 #[repr(transparent)]
 pub struct TensorInfo<'t, 'tl> {
     pub(crate) tensor_info: *mut mnn_sys::TensorInfo,
@@ -148,6 +154,7 @@ impl core::fmt::Debug for TensorInfo<'_, '_> {
     }
 }
 
+/// Mutable information about a tensor in a tensor list
 #[repr(transparent)]
 pub struct TensorInfoMut<'t, 'tl> {
     pub(crate) tensor_info: *mut mnn_sys::TensorInfo,
@@ -165,6 +172,7 @@ impl core::fmt::Debug for TensorInfoMut<'_, '_> {
 }
 
 impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
+    /// Get the name of the tensor
     pub fn name(&self) -> &'tl str {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { (*self.tensor_info).name.to_cstr() }
@@ -172,6 +180,7 @@ impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
             .expect("Tensor name is not utf-8")
     }
 
+    /// Get the tensor with the specified type
     pub fn tensor<H: HalideType>(&self) -> Result<Tensor<View<&'t H>, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
@@ -187,6 +196,7 @@ impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
         Ok(tensor)
     }
 
+    /// Get a mutable reference to the tensor with the specified type
     pub fn tensor_mut<H: HalideType>(&mut self) -> Result<Tensor<View<&'t mut H>, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
@@ -228,6 +238,7 @@ impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
 }
 
 impl<'t, 'tl> TensorInfo<'t, 'tl> {
+    /// Get the name of the tensor
     pub fn name(&self) -> &'tl str {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { (*self.tensor_info).name.to_cstr() }
@@ -235,6 +246,7 @@ impl<'t, 'tl> TensorInfo<'t, 'tl> {
             .expect("Tensor name is not utf-8")
     }
 
+    /// Get the tensor with the specified type
     pub fn tensor<H: HalideType>(&self) -> Result<Tensor<View<&'t H>, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };

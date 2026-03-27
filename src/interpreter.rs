@@ -1,10 +1,10 @@
 //! The interpreter module provides the `Interpreter` struct which is used to load and run models.
-use crate::{TensorView, tensor::list::TensorList};
+use crate::{tensor::list::TensorList, TensorView};
 use std::{ffi::CStr, path::Path, sync::Arc};
 
 use crate::{
-    AsTensorShape, Device, RawTensor, ScheduleConfig, Tensor, TensorMachine, TensorType,
-    TensorViewMut, prelude::*,
+    prelude::*, AsTensorShape, Device, RawTensor, ScheduleConfig, Tensor, TensorMachine,
+    TensorType, TensorViewMut,
 };
 use mnn_sys::HalideType;
 
@@ -230,6 +230,27 @@ impl Interpreter {
                 dims_len,
             )
         }
+    }
+
+    /// Resize the tenror by name using the given shape
+    pub fn resize_tensor_by_name<'a>(
+        &self,
+        session: &crate::Session,
+        name: impl AsRef<str>,
+        dims: impl AsTensorShape,
+    ) -> Result<()> {
+        let tensor = self.raw_input(session, name)?;
+        let dims = dims.as_tensor_shape();
+        let dims_len = dims.size;
+        unsafe {
+            mnn_sys::Interpreter_resizeTensor(
+                self.inner,
+                tensor.inner,
+                dims.shape.as_ptr(),
+                dims_len,
+            )
+        }
+        Ok(())
     }
 
     /// Resize tensor by

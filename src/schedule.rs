@@ -1,7 +1,7 @@
 use mnn_sys::*;
 use std::{ffi::CString, mem::ManuallyDrop};
 
-use crate::{BackendConfig, prelude::*};
+use crate::{prelude::*, BackendConfig};
 
 /// Backend used for running the model
 ///
