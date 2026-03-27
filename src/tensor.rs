@@ -4,7 +4,9 @@ use mnn_sys::*;
 /// Tensor list and iteration utilities
 pub mod list;
 mod raw;
+mod tensor_ref;
 pub use raw::RawTensor;
+pub use tensor_ref::TensorRef;
 
 use mnn_sys::HalideType;
 
@@ -109,24 +111,24 @@ pub struct Owned<T> {
 /// A generic tensor that can of host / device / owned / borrowed
 #[derive(Debug)]
 #[repr(transparent)]
-pub struct Tensor<T, M, A = <T as TensorType>::H>
+pub struct Tensor<S, M, A = <S as TensorType>::H>
 where
     A: HalideType,
     M: TensorMachine,
-    T: TensorType<H = A>,
+    S: TensorType<H = A>,
 {
     pub(crate) tensor: *mut mnn_sys::Tensor,
-    __marker: PhantomData<(T, M, A)>,
+    __marker: PhantomData<(S, M, A)>,
 }
 
-impl<T, M, A> Drop for Tensor<T, M, A>
+impl<S, M, A> Drop for Tensor<S, M, A>
 where
     A: HalideType,
-    T: TensorType<H = A>,
+    S: TensorType<H = A>,
     M: TensorMachine,
 {
     fn drop(&mut self) {
-        if T::owned() {
+        if S::owned() {
             unsafe {
                 mnn_sys::Tensor_destroy(self.tensor);
             }
@@ -253,51 +255,6 @@ where
         let ret = unsafe { Tensor_copyToHostTensor(self.tensor, tensor.tensor) };
         crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
         Ok(())
-    }
-
-    /// Get the device id of the tensor
-    pub fn device_id(&self) -> u64 {
-        unsafe { Tensor_deviceId(self.tensor) }
-    }
-
-    /// Get the shape of the tensor
-    pub fn shape(&self) -> TensorShape {
-        unsafe { Tensor_shape(self.tensor) }.into()
-    }
-
-    /// Get the dimensions of the tensor
-    pub fn dimensions(&self) -> usize {
-        unsafe { Tensor_dimensions(self.tensor) as usize }
-    }
-
-    /// Get the width of the tensor
-    pub fn width(&self) -> u32 {
-        unsafe { Tensor_width(self.tensor) as u32 }
-    }
-
-    /// Get the height of the tensor
-    pub fn height(&self) -> u32 {
-        unsafe { Tensor_height(self.tensor) as u32 }
-    }
-
-    /// Get the channel size of the tensor
-    pub fn channel(&self) -> u32 {
-        unsafe { Tensor_channel(self.tensor) as u32 }
-    }
-
-    /// Get the batch size of the tensor
-    pub fn batch(&self) -> u32 {
-        unsafe { Tensor_batch(self.tensor) as u32 }
-    }
-
-    /// Get the size of the tensor when counted by bytes
-    pub fn size(&self) -> usize {
-        unsafe { Tensor_usize(self.tensor) }
-    }
-
-    /// Get the size of the tensor when counted by elements
-    pub fn element_size(&self) -> usize {
-        unsafe { Tensor_elementSize(self.tensor) as usize }
     }
 
     /// Print the shape of the tensor
