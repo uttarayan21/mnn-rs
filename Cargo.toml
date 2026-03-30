@@ -55,6 +55,8 @@ divan = "0.1.14"
 tracing = "0.1.40"
 tracing-subscriber = "0.3.19"
 tracing-test = { version = "0.2.5", features = ["no-env-filter"] }
+image = "0.25"
+imageproc = "0.25"
 
 [[bench]]
 name = "mnn-bench"
