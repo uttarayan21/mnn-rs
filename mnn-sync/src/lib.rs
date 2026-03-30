@@ -192,13 +192,16 @@ impl SessionState {
 
 #[non_exhaustive]
 #[derive(Debug)]
+/// The lifetime of the session is 'static since we can't have self-referential structs.
+/// This is safe since session is not actually bound by Interpreter struct's lifetime but the internal pointer that points to the actual interpreter in C++.
+/// Which we can ensure will outlive the session since we own both of them.
 pub struct SessionRunner {
     pub interpreter: Interpreter,
-    pub session: Session,
+    pub session: Session<'static>,
 }
 
 impl SessionRunner {
-    pub fn new(interpreter: Interpreter, session: Session) -> Self {
+    pub(crate) fn new(interpreter: Interpreter, session: Session) -> Self {
         Self {
             interpreter,
             session,
@@ -539,11 +542,11 @@ pub fn test_sync_api_race() {
         .expect("Failed to create session handle");
     session_handle
         .run(move |sr| {
-            let session = sr.session();
+            let mut session = sr.session();
             let interpreter = sr.interpreter();
-            let inputs = interpreter.inputs(session);
-            inputs.iter().for_each(|x| {
-                let mut tensor = x.tensor::<f32>().expect("No tensor");
+            let mut inputs = interpreter.inputs(&mut session);
+            inputs.iter_mut().for_each(|x| {
+                let mut tensor = x.tensor_mut::<f32>().expect("No tensor");
                 println!("{}: {:?}", x.name(), tensor.shape());
                 let mut cpu_tensor = tensor.create_host_tensor_from_device(false);
                 cpu_tensor.host_mut().fill(1.0f32);

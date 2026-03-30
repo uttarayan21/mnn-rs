@@ -342,7 +342,7 @@ impl Interpreter {
     /// `session`: the session to get input tensor
     ///
     /// return: List of input tensors
-    pub fn inputs<'i>(&self, session: &'i crate::Session) -> TensorList<'i> {
+    pub fn inputs<'i>(&self, session: &'i mut crate::Session) -> TensorList<'i> {
         let inputs = unsafe { mnn_sys::Interpreter_getSessionInputAll(self.inner, session.inner) };
         TensorList::from_ptr(inputs)
     }
