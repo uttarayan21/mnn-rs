@@ -195,13 +195,19 @@ where
     M: TensorMachine,
 {
     /// Fill the tensor with the specified value
-    pub fn fill(&mut self, value: T)
+    pub fn fill(&mut self, value: T) -> Result<()>
     where
         T: Copy,
     {
+        if !self.is_type_of::<T>() {
+            unimplemented!(
+                "Filling tensor of type {:?} with value of type {:?} is not supported",
+                self.get_dimension_type(),
+                halide_type_of::<T>()
+            );
+        }
         if M::host() {
             let size = self.element_size();
-            assert!(self.is_type_of::<T>());
             let result: &mut [T] = unsafe {
                 let data = mnn_sys::Tensor_host_mut(self.as_ptr()).cast();
                 core::slice::from_raw_parts_mut(data, size)
@@ -211,11 +217,58 @@ where
             let shape = self.shape();
             let dm_type = self.get_dimension_type();
             let mut host = Tensor::new(shape, dm_type);
-            host.fill(value);
-            self.copy_from_host_tensor(&host)
-                .expect("Failed to copy data from host tensor");
-        } else {
-            unreachable!()
+            host.fill(value)?;
+            self.copy_from_host_tensor(&host)?;
         }
+        Ok(())
+    }
+}
+
+impl<T> TensorRef<T, Host>
+where
+    T: HalideType,
+{
+    /// Try to map the device tensor to the host memory and get the slice
+    pub fn try_host(&self) -> Result<&[T]> {
+        let size = self.element_size();
+        ensure!(
+            self.is_type_of::<T>(),
+            ErrorKind::HalideTypeMismatch {
+                got: std::any::type_name::<T>(),
+            }
+        );
+        let result = unsafe {
+            let data = mnn_sys::Tensor_host(self.as_ptr()).cast();
+            core::slice::from_raw_parts(data, size)
+        };
+        Ok(result)
+    }
+
+    /// Try to map the device tensor to the host memory and get the mutable slice
+    pub fn try_host_mut(&mut self) -> Result<&mut [T]> {
+        let size = self.element_size();
+        ensure!(
+            self.is_type_of::<T>(),
+            ErrorKind::HalideTypeMismatch {
+                got: std::any::type_name::<T>(),
+            }
+        );
+
+        let result = unsafe {
+            let data: *mut T = mnn_sys::Tensor_host_mut(self.as_ptr()).cast();
+            debug_assert!(!data.is_null());
+            core::slice::from_raw_parts_mut(data, size)
+        };
+        Ok(result)
+    }
+
+    /// Get the host memory slice of the tensor
+    pub fn host(&self) -> &[T] {
+        self.try_host().expect("Failed to get tensor host")
+    }
+
+    /// Get the mutable host memory slice of the tensor
+    pub fn host_mut(&mut self) -> &mut [T] {
+        self.try_host_mut().expect("Failed to get tensor host_mut")
     }
 }

@@ -289,62 +289,6 @@ where
     }
 }
 
-impl<H, T> Tensor<T, Host>
-where
-    T: TensorType<H = H>,
-    H: HalideType,
-{
-    /// Try to map the device tensor to the host memory and get the slice
-    pub fn try_host(&self) -> Result<&[T::H]> {
-        let size = self.element_size();
-        ensure!(
-            self.is_type_of::<T::H>(),
-            ErrorKind::HalideTypeMismatch {
-                got: std::any::type_name::<T::H>(),
-            }
-        );
-        let result = unsafe {
-            let data = mnn_sys::Tensor_host(self.tensor).cast();
-            core::slice::from_raw_parts(data, size)
-        };
-        Ok(result)
-    }
-
-    /// Try to map the device tensor to the host memory and get the mutable slice
-    pub fn try_host_mut(&mut self) -> Result<&mut [T::H]>
-    where
-        T: MutableTensorType<H = H>,
-    {
-        let size = self.element_size();
-        ensure!(
-            self.is_type_of::<T::H>(),
-            ErrorKind::HalideTypeMismatch {
-                got: std::any::type_name::<T::H>(),
-            }
-        );
-
-        let result = unsafe {
-            let data: *mut T::H = mnn_sys::Tensor_host_mut(self.tensor).cast();
-            debug_assert!(!data.is_null());
-            core::slice::from_raw_parts_mut(data, size)
-        };
-        Ok(result)
-    }
-
-    /// Get the host memory slice of the tensor
-    pub fn host(&self) -> &[T::H] {
-        self.try_host().expect("Failed to get tensor host")
-    }
-
-    /// Get the mutable host memory slice of the tensor
-    pub fn host_mut(&mut self) -> &mut [T::H]
-    where
-        T: MutableTensorType<H = H>,
-    {
-        self.try_host_mut().expect("Failed to get tensor host_mut")
-    }
-}
-
 impl<H, M> Tensor<Owned<H>, M>
 where
     H: HalideType,
