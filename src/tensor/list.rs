@@ -1,5 +1,5 @@
 #![deny(missing_docs)]
-use crate::{prelude::*, Device, RawTensor, Tensor, View};
+use crate::{prelude::*, Device, RawTensor, TensorRef};
 use mnn_sys::HalideType;
 
 /// A list of tensors returned by interpreter input/output queries
@@ -181,10 +181,10 @@ impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
     }
 
     /// Get the tensor with the specified type
-    pub fn tensor<H: HalideType>(&self) -> Result<Tensor<View<&'t H>, Device>> {
+    pub fn tensor<H: HalideType>(&self) -> Result<&'t TensorRef<H, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        let tensor = unsafe { Tensor::from_ptr((*self.tensor_info).tensor.cast()) };
+        let tensor = unsafe { crate::tensor::from_raw_parts((*self.tensor_info).tensor.cast()) };
         let shape = tensor.shape();
         ensure!(!shape.as_ref().contains(&-1), ErrorKind::DynamicTensorError);
         ensure!(
@@ -197,10 +197,10 @@ impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
     }
 
     /// Get a mutable reference to the tensor with the specified type
-    pub fn tensor_mut<H: HalideType>(&mut self) -> Result<Tensor<View<&'t mut H>, Device>> {
+    pub fn tensor_mut<H: HalideType>(&mut self) -> Result<&'t mut TensorRef<H, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        let tensor = unsafe { Tensor::from_ptr((*self.tensor_info).tensor.cast()) };
+        let tensor = unsafe { crate::tensor::from_raw_parts_mut((*self.tensor_info).tensor.cast()) };
         let shape = tensor.shape();
         ensure!(!shape.as_ref().contains(&-1), ErrorKind::DynamicTensorError);
         ensure!(
@@ -216,10 +216,10 @@ impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
     /// The shape is not checked so it's marked unsafe since futher calls to interpreter might be **unsafe** with this
     pub unsafe fn tensor_unresized<H: HalideType>(
         &mut self,
-    ) -> Result<Tensor<View<&'t mut H>, Device>> {
+    ) -> Result<&'t mut TensorRef<H, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        let tensor = unsafe { Tensor::from_ptr((*self.tensor_info).tensor.cast()) };
+        let tensor = unsafe { crate::tensor::from_raw_parts_mut((*self.tensor_info).tensor.cast()) };
         ensure!(
             tensor.is_type_of::<H>(),
             ErrorKind::HalideTypeMismatch {
@@ -247,10 +247,10 @@ impl<'t, 'tl> TensorInfo<'t, 'tl> {
     }
 
     /// Get the tensor with the specified type
-    pub fn tensor<H: HalideType>(&self) -> Result<Tensor<View<&'t H>, Device>> {
+    pub fn tensor<H: HalideType>(&self) -> Result<&'t TensorRef<H, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        let tensor = unsafe { Tensor::from_ptr((*self.tensor_info).tensor.cast()) };
+        let tensor = unsafe { crate::tensor::from_raw_parts((*self.tensor_info).tensor.cast()) };
         let shape = tensor.shape();
         ensure!(!shape.as_ref().contains(&-1), ErrorKind::DynamicTensorError);
         ensure!(
@@ -266,10 +266,10 @@ impl<'t, 'tl> TensorInfo<'t, 'tl> {
     /// The shape is not checked so it's marked unsafe since futher calls to interpreter might be **unsafe** with this
     pub unsafe fn tensor_unresized<H: HalideType>(
         &mut self,
-    ) -> Result<Tensor<View<&'t mut H>, Device>> {
+    ) -> Result<&'t mut TensorRef<H, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        let tensor = unsafe { Tensor::from_ptr((*self.tensor_info).tensor.cast()) };
+        let tensor = unsafe { crate::tensor::from_raw_parts_mut((*self.tensor_info).tensor.cast()) };
         ensure!(
             tensor.is_type_of::<H>(),
             ErrorKind::HalideTypeMismatch {

@@ -8,9 +8,9 @@ mod mnn_realesr_bench_with_ones {
         let mut net = Interpreter::from_file("tests/assets/realesr.mnn").unwrap();
         let mut config = ScheduleConfig::new();
         config.set_type(ForwardType::CPU);
-        let session = net.create_session(config).unwrap();
+        let mut session = net.create_session(config).unwrap();
         bencher.bench_local(|| {
-            let mut input = net.input(&session, "data").unwrap();
+            let mut input = net.input(&mut session, "data").unwrap();
             input.fill(1f32);
             net.run_session(&session).unwrap();
         });
@@ -22,9 +22,9 @@ mod mnn_realesr_bench_with_ones {
         let mut net = Interpreter::from_file("tests/assets/realesr.mnn").unwrap();
         let mut config = ScheduleConfig::new();
         config.set_type(ForwardType::OpenCL);
-        let session = net.create_session(config).unwrap();
+        let mut session = net.create_session(config).unwrap();
         bencher.bench_local(|| {
-            let mut input = net.input(&session, "data").unwrap();
+            let mut input = net.input(&mut session, "data").unwrap();
             input.fill(1f32);
             net.run_session(&session).unwrap();
             net.wait(&session);
@@ -37,9 +37,9 @@ mod mnn_realesr_bench_with_ones {
         let mut net = Interpreter::from_file("tests/assets/realesr.mnn").unwrap();
         let mut config = ScheduleConfig::new();
         config.set_type(ForwardType::Metal);
-        let session = net.create_session(config).unwrap();
+        let mut session = net.create_session(config).unwrap();
         bencher.bench_local(|| {
-            let mut input = net.input(&session, "data").unwrap();
+            let mut input = net.input(&mut session, "data").unwrap();
             input.fill(1f32);
             net.run_session(&session).unwrap();
             net.wait(&session);
@@ -52,9 +52,9 @@ mod mnn_realesr_bench_with_ones {
         let mut net = Interpreter::from_file("tests/assets/realesr.mnn").unwrap();
         let mut config = ScheduleConfig::new();
         config.set_type(ForwardType::CoreML);
-        let session = net.create_session(config).unwrap();
+        let mut session = net.create_session(config).unwrap();
         bencher.bench_local(|| {
-            let mut input = net.input(&session, "data").unwrap();
+            let mut input = net.input(&mut session, "data").unwrap();
             input.fill(1f32);
             net.run_session(&session).unwrap();
             net.wait(&session);

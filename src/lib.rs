@@ -13,8 +13,8 @@
 //! use mnn::*;
 //! let mut interpreter = Interpreter::from_bytes([0;100]).unwrap();
 //! let mut sc = ScheduleConfig::new();
-//! let session = interpreter.create_session(sc).unwrap();
-//! let mut input = interpreter.input::<f32>(&session, "input").unwrap();
+//! let mut session = interpreter.create_session(sc).unwrap();
+//! let mut input = interpreter.input::<f32>(&mut session, "input").unwrap();
 //! let mut tensor = input.create_host_tensor_from_device(false);
 //! tensor.host_mut().fill(1.0f32);
 //! input.copy_from_host_tensor(&tensor).unwrap();
