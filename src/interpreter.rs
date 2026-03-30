@@ -1,11 +1,8 @@
 //! The interpreter module provides the `Interpreter` struct which is used to load and run models.
-use crate::{TensorRef, TensorView, tensor::list::TensorList};
+use crate::{TensorList, TensorRef};
 use std::{ffi::CStr, path::Path, sync::Arc};
 
-use crate::{
-    AsTensorShape, Device, RawTensor, ScheduleConfig, Tensor, TensorMachine, TensorViewMut,
-    prelude::*,
-};
+use crate::{AsTensorShape, Device, RawTensor, ScheduleConfig, prelude::*};
 use mnn_sys::HalideType;
 
 pub(crate) type TensorCallbackT = Box<dyn Fn(&[RawTensor], OperatorInfo) -> bool>;
@@ -369,7 +366,6 @@ impl Interpreter {
         };
         ensure!(!input.is_null(), ErrorKind::TensorError; format!("Input tensor \"{name}\" not found"));
         let tensor = unsafe { crate::tensor::from_raw_parts_mut(input) };
-        // let tensor = unsafe { Tensor::<crate::View<&mut H>, Device>::from_ptr(input) };
         let shape = tensor.shape();
         ensure!(!shape.as_ref().contains(&-1), ErrorKind::DynamicTensorError);
         ensure!(
@@ -428,15 +424,15 @@ impl Interpreter {
     /// **Undefined Behavior** if the tensor is not of type `H`
     pub unsafe fn input_unchecked<'s, H: HalideType>(
         &self,
-        session: &'s crate::Session,
+        session: &'s mut crate::Session,
         name: impl AsRef<str>,
-    ) -> TensorViewMut<'s, H, Device> {
+    ) -> &'s mut TensorRef<H, Device> {
         let name = name.as_ref();
         let c_name = std::ffi::CString::new(name).expect("Input tensor name is not ascii");
         unsafe {
             let input =
                 mnn_sys::Interpreter_getSessionInput(self.inner, session.inner, c_name.as_ptr());
-            Tensor::from_ptr(input)
+            crate::tensor::from_raw_parts_mut(input)
         }
     }
 
@@ -449,14 +445,14 @@ impl Interpreter {
         &self,
         session: &'s crate::Session,
         name: impl AsRef<str>,
-    ) -> Result<TensorView<'s, H, Device>> {
+    ) -> Result<&'s TensorRef<H, Device>> {
         let name = name.as_ref();
         let c_name = std::ffi::CString::new(name).change_context(ErrorKind::AsciiError)?;
         let output = unsafe {
             mnn_sys::Interpreter_getSessionOutput(self.inner, session.inner, c_name.as_ptr())
         };
         ensure!(!output.is_null(), ErrorKind::IOError;format!("Output tensor \"{name}\" not found"));
-        let tensor = unsafe { Tensor::from_ptr(output) };
+        let tensor = unsafe { crate::tensor::from_raw_parts(output) };
         let shape = tensor.shape();
         ensure!(!shape.as_ref().contains(&-1), ErrorKind::DynamicTensorError);
         ensure!(

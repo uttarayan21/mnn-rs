@@ -9,6 +9,9 @@
 ///   2. Convert to MNN:
 ///      MNNConvert -f ONNX --modelFile /tmp/version-RFB-320.onnx --MNNModel examples/assets/ultraface-320.mnn
 ///
+/// In case model conversion fails, you can use onnxsim to simplify the ONNX model first before converting to MNN:
+/// https://github.com/onnxsim/onnxsim
+///
 /// Usage:
 ///   cargo run --example face_detection -- <image> [--model PATH] [--threshold 0.7] [--iou-threshold 0.3]
 use image::{DynamicImage, ImageDecoder, Rgb};
