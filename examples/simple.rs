@@ -27,13 +27,13 @@ pub fn main() -> anyhow::Result<()> {
     config.set_backend_config(backend_config);
 
     let now = std::time::Instant::now();
-    let session = interpreter.create_session(config)?;
+    let mut session = interpreter.create_session(config)?;
     println!("create session time: {:?}", now.elapsed());
-    let mut image = interpreter.input(&session, "image")?;
-    let mut mask = interpreter.input(&session, "mask")?;
+    let mut image = interpreter.input(&mut session, "image")?;
     let mut image_tensor = image.create_host_tensor_from_device(false);
     image_tensor.host_mut().fill(1.0f32);
     image.copy_from_host_tensor(&image_tensor)?;
+    let mut mask = interpreter.input(&mut session, "mask")?;
     let mut mask_tensor = mask.create_host_tensor_from_device(false);
     mask_tensor.host_mut().fill(0.7f32);
     let now = std::time::Instant::now();

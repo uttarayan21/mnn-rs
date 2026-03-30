@@ -13,13 +13,13 @@ pub fn test_resizing() -> Result<()> {
     net.update_cache_file(&mut session)?;
 
     let now = std::time::Instant::now();
-    let mut mask = unsafe { net.input_unresized::<f32>(&session, "mask") }?;
+    let mut mask = unsafe { net.input_unresized::<f32>(&mut session, "mask") }?;
     net.resize_tensor(&mut mask, [2048, 2048]);
 
-    let mut og = unsafe { net.input_unresized::<f32>(&session, "original") }?;
+    let mut og = unsafe { net.input_unresized::<f32>(&mut session, "original") }?;
     net.resize_tensor(&mut og, [2048, 2048, 3]);
 
-    let mut pain = unsafe { net.input_unresized::<f32>(&session, "inpainted") }?;
+    let mut pain = unsafe { net.input_unresized::<f32>(&mut session, "inpainted") }?;
     net.resize_tensor(&mut pain, [2048, 2048, 3]);
 
     net.resize_session(&mut session);

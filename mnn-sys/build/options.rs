@@ -1,12 +1,11 @@
 use std::sync::LazyLock;
 
-use build_target::Arch;
-
 pub const VENDOR: &str = concat!(env!("CARGO_MANIFEST_DIR"), "/vendor");
 pub const MANIFEST_DIR: &str = env!("CARGO_MANIFEST_DIR");
 
-pub static TARGET_ARCH: LazyLock<Arch> = LazyLock::new(|| build_target::target_arch());
-pub static TARGET_OS: LazyLock<build_target::Os> = LazyLock::new(|| build_target::target_os());
+#[cfg(feature = "download")]
+pub static TARGET_ARCH: LazyLock<build_target::Arch> = LazyLock::new(build_target::target_arch);
+pub static TARGET_OS: LazyLock<build_target::Os> = LazyLock::new(build_target::target_os);
 
 pub static MNN_COMPILE: LazyLock<bool> = LazyLock::new(|| {
     std::env::var("MNN_COMPILE")
@@ -115,35 +114,35 @@ impl CxxOption {
     pub const THREADPOOL: CxxOption =
         cxx_option_from_feature!("mnn-threadpool", "MNN_USE_THREAD_POOL");
 
-    pub fn new(name: &'static str, value: impl Into<CxxOptionValue>) -> Self {
-        Self {
-            name,
-            value: value.into(),
-        }
-    }
-
-    pub fn on(mut self) -> Self {
-        self.value = CxxOptionValue::On;
-        self
-    }
-
-    pub fn off(mut self) -> Self {
-        self.value = CxxOptionValue::Off;
-        self
-    }
-
-    pub fn with_value(mut self, value: &'static str) -> Self {
-        self.value = CxxOptionValue::Value(value);
-        self
-    }
-
-    pub fn cmake(&self) -> String {
-        match &self.value {
-            CxxOptionValue::On => format!("-D{}=ON", self.name),
-            CxxOptionValue::Off => format!("-D{}=OFF", self.name),
-            CxxOptionValue::Value(v) => format!("-D{}={}", self.name, v),
-        }
-    }
+    // pub fn new(name: &'static str, value: impl Into<CxxOptionValue>) -> Self {
+    //     Self {
+    //         name,
+    //         value: value.into(),
+    //     }
+    // }
+    //
+    // pub fn on(mut self) -> Self {
+    //     self.value = CxxOptionValue::On;
+    //     self
+    // }
+    //
+    // pub fn off(mut self) -> Self {
+    //     self.value = CxxOptionValue::Off;
+    //     self
+    // }
+    //
+    // pub fn with_value(mut self, value: &'static str) -> Self {
+    //     self.value = CxxOptionValue::Value(value);
+    //     self
+    // }
+    //
+    // pub fn cmake(&self) -> String {
+    //     match &self.value {
+    //         CxxOptionValue::On => format!("-D{}=ON", self.name),
+    //         CxxOptionValue::Off => format!("-D{}=OFF", self.name),
+    //         CxxOptionValue::Value(v) => format!("-D{}={}", self.name, v),
+    //     }
+    // }
 
     pub fn cmake_value(&self) -> &'static str {
         match &self.value {
@@ -161,11 +160,11 @@ impl CxxOption {
         }
     }
 
-    pub fn enabled(&self) -> bool {
-        match self.value {
-            CxxOptionValue::On => true,
-            CxxOptionValue::Off => false,
-            CxxOptionValue::Value(_) => true,
-        }
-    }
+    // pub fn enabled(&self) -> bool {
+    //     match self.value {
+    //         CxxOptionValue::On => true,
+    //         CxxOptionValue::Off => false,
+    //         CxxOptionValue::Value(_) => true,
+    //     }
+    // }
 }

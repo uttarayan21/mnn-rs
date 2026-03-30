@@ -233,9 +233,9 @@ impl Interpreter {
     }
 
     /// Resize the tenror by name using the given shape
-    pub fn resize_tensor_by_name<'a>(
+    pub fn resize_tensor_by_name(
         &self,
-        session: &crate::Session,
+        session: &mut crate::Session,
         name: impl AsRef<str>,
         dims: impl AsTensorShape,
     ) -> Result<()> {
@@ -359,9 +359,9 @@ impl Interpreter {
     /// return: the input tensor
     pub fn input<'s, H: HalideType>(
         &self,
-        session: &'s crate::Session,
+        session: &'s mut crate::Session,
         name: impl AsRef<str>,
-    ) -> Result<&mut TensorRef<H, Device>> {
+    ) -> Result<&'s mut TensorRef<H, Device>> {
         let name = name.as_ref();
         let c_name = std::ffi::CString::new(name).change_context(ErrorKind::AsciiError)?;
         let input = unsafe {
@@ -385,7 +385,7 @@ impl Interpreter {
     /// Get the raw input tensor of a session by name
     pub fn raw_input<'s>(
         &self,
-        session: &'s crate::Session,
+        session: &'s mut crate::Session,
         name: impl AsRef<str>,
     ) -> Result<RawTensor<'s>> {
         let name = name.as_ref();
@@ -401,9 +401,9 @@ impl Interpreter {
     /// **Warning**  We Still don't know the safety guarantees of this function so it's marked unsafe
     pub unsafe fn input_unresized<'s, H: HalideType>(
         &self,
-        session: &'s crate::Session,
+        session: &'s mut crate::Session,
         name: impl AsRef<str>,
-    ) -> Result<&mut TensorRef<H, Device>> {
+    ) -> Result<&'s mut TensorRef<H, Device>> {
         let name = name.as_ref();
         let c_name = std::ffi::CString::new(name).change_context(ErrorKind::AsciiError)?;
         let input = unsafe {

@@ -30,7 +30,7 @@ where
 impl<H: HalideType, M: TensorMachine> TensorRef<H, M> {
     /// Get a raw pointer to the underlying MNN tensor
     pub(crate) fn as_ptr(&self) -> *mut mnn_sys::Tensor {
-        unsafe { core::mem::transmute::<&Self, *mut mnn_sys::Tensor>(self) }
+        self as *const TensorRef<H, M> as *mut mnn_sys::Tensor
     }
 
     /// Get the device id of the tensor
@@ -149,7 +149,7 @@ where
     H: HalideType,
     M: TensorMachine,
 {
-    unsafe { core::mem::transmute::<_, &TensorRef<H, M>>(tensor) }
+    unsafe { &*tensor.cast::<TensorRef<H, M>>() }
 }
 
 /// Construct a mutable tensor reference from a raw pointer to an MNN tensor
@@ -162,7 +162,7 @@ where
     H: HalideType,
     M: TensorMachine,
 {
-    unsafe { core::mem::transmute::<_, &mut TensorRef<H, M>>(tensor) }
+    unsafe { &mut *tensor.cast::<TensorRef<H, M>>() }
 }
 
 impl<S, M, H> core::ops::Deref for Tensor<S, M, H>
@@ -174,7 +174,7 @@ where
     type Target = TensorRef<H, M>;
 
     fn deref(&self) -> &Self::Target {
-        unsafe { core::mem::transmute::<_, &TensorRef<H, M>>(self.tensor) }
+        unsafe { from_raw_parts(self.tensor) }
     }
 }
 
@@ -185,7 +185,7 @@ where
     M: TensorMachine,
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
-        unsafe { core::mem::transmute::<_, &mut TensorRef<H, M>>(self.tensor) }
+        unsafe { from_raw_parts_mut(self.tensor) }
     }
 }
 
