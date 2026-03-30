@@ -289,38 +289,6 @@ where
     }
 }
 
-impl<H, T: MutableTensorType, M> Tensor<T, M>
-where
-    H: HalideType,
-    T: MutableTensorType<H = H>,
-    M: TensorMachine,
-{
-    /// Fill the tensor with the specified value
-    pub fn fill(&mut self, value: T::H)
-    where
-        T::H: Copy,
-    {
-        if M::host() {
-            let size = self.element_size();
-            assert!(self.is_type_of::<T::H>());
-            let result: &mut [T::H] = unsafe {
-                let data = mnn_sys::Tensor_host_mut(self.tensor).cast();
-                core::slice::from_raw_parts_mut(data, size)
-            };
-            result.fill(value);
-        } else if M::device() {
-            let shape = self.shape();
-            let dm_type = self.get_dimension_type();
-            let mut host = Tensor::new(shape, dm_type);
-            host.fill(value);
-            self.copy_from_host_tensor(&host)
-                .expect("Failed to copy data from host tensor");
-        } else {
-            unreachable!()
-        }
-    }
-}
-
 impl<H, T> Tensor<T, Host>
 where
     T: TensorType<H = H>,

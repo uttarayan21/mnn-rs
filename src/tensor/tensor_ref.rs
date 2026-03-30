@@ -1,7 +1,7 @@
 use super::*;
 
-/// A reference to a tensor
-/// This is analogous to &[T] in Rust, which is a reference to a slice of T
+/// This is modeled as a reference to a tensor, you should never be able to dereference this.
+/// At any point you should only have &TensorRef or &mut TensorRef, never an owned TensorRef.
 pub struct TensorRef<H, M>
 where
     H: HalideType,
@@ -19,14 +19,17 @@ where
         f.debug_struct("TensorRef")
             .field("shape", &self.shape())
             .field("device_id", &self.device_id())
-            // .field("len", &self.len())
+            .field("dimensions", &self.get_dimension_type())
+            .field("elements", &self.element_size())
+            .field("dynamic", &self.is_dynamic_unsized())
+            .field("size", &self.size())
             .finish()
     }
 }
 
 impl<H: HalideType, M: TensorMachine> TensorRef<H, M> {
     /// Get a raw pointer to the underlying MNN tensor
-    pub fn as_ptr(&self) -> *mut mnn_sys::Tensor {
+    pub(crate) fn as_ptr(&self) -> *mut mnn_sys::Tensor {
         unsafe { core::mem::transmute::<&Self, *mut mnn_sys::Tensor>(self) }
     }
 
@@ -183,5 +186,36 @@ where
 {
     fn deref_mut(&mut self) -> &mut Self::Target {
         unsafe { core::mem::transmute::<_, &mut TensorRef<H, M>>(self.tensor) }
+    }
+}
+
+impl<T, M> TensorRef<T, M>
+where
+    T: HalideType,
+    M: TensorMachine,
+{
+    /// Fill the tensor with the specified value
+    pub fn fill(&mut self, value: T)
+    where
+        T: Copy,
+    {
+        if M::host() {
+            let size = self.element_size();
+            assert!(self.is_type_of::<T>());
+            let result: &mut [T] = unsafe {
+                let data = mnn_sys::Tensor_host_mut(self.as_ptr()).cast();
+                core::slice::from_raw_parts_mut(data, size)
+            };
+            result.fill(value);
+        } else if M::device() {
+            let shape = self.shape();
+            let dm_type = self.get_dimension_type();
+            let mut host = Tensor::new(shape, dm_type);
+            host.fill(value);
+            self.copy_from_host_tensor(&host)
+                .expect("Failed to copy data from host tensor");
+        } else {
+            unreachable!()
+        }
     }
 }
