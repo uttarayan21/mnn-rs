@@ -33,11 +33,11 @@ pub fn main() -> anyhow::Result<()> {
     let mut mask = interpreter.input(&session, "mask")?;
     let mut image_tensor = image.create_host_tensor_from_device(false);
     image_tensor.host_mut().fill(1.0f32);
-    image.copy_from_host_tensor(image_tensor.view())?;
+    image.copy_from_host_tensor(&image_tensor)?;
     let mut mask_tensor = mask.create_host_tensor_from_device(false);
     mask_tensor.host_mut().fill(0.7f32);
     let now = std::time::Instant::now();
-    mask.copy_from_host_tensor(mask_tensor.view())?;
+    mask.copy_from_host_tensor(&mask_tensor)?;
     println!("copy time: {:?}", now.elapsed());
 
     let output = interpreter.output(&session, "output")?;

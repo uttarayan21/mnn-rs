@@ -17,7 +17,7 @@
 //! let mut input = interpreter.input::<f32>(&session, "input").unwrap();
 //! let mut tensor = input.create_host_tensor_from_device(false);
 //! tensor.host_mut().fill(1.0f32);
-//! input.copy_from_host_tensor(tensor.view()).unwrap();
+//! input.copy_from_host_tensor(&tensor).unwrap();
 //! interpreter.run_session(&session).unwrap();
 //! let output = interpreter.output::<u8>(&session, "output").unwrap();
 //! let mut output_tensor = output.create_host_tensor_from_device(true);

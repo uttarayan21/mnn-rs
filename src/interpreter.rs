@@ -1,10 +1,10 @@
 //! The interpreter module provides the `Interpreter` struct which is used to load and run models.
-use crate::{tensor::list::TensorList, TensorView};
+use crate::{TensorRef, TensorView, tensor::list::TensorList};
 use std::{ffi::CStr, path::Path, sync::Arc};
 
 use crate::{
-    prelude::*, AsTensorShape, Device, RawTensor, ScheduleConfig, Tensor, TensorMachine,
-    TensorType, TensorViewMut,
+    AsTensorShape, Device, RawTensor, ScheduleConfig, Tensor, TensorMachine, TensorViewMut,
+    prelude::*,
 };
 use mnn_sys::HalideType;
 
@@ -215,9 +215,9 @@ impl Interpreter {
     }
 
     /// Resize the tensor using the given shape
-    pub fn resize_tensor<'a, H: HalideType + 'a, M: TensorMachine>(
+    pub fn resize_tensor<H: HalideType, M: TensorMachine>(
         &self,
-        tensor: TensorViewMut<'a, H, M>,
+        tensor: &mut TensorRef<H, M>,
         dims: impl AsTensorShape,
     ) {
         let dims = dims.as_tensor_shape();
@@ -225,7 +225,7 @@ impl Interpreter {
         unsafe {
             mnn_sys::Interpreter_resizeTensor(
                 self.inner,
-                tensor.tensor,
+                tensor.as_ptr(),
                 dims.shape.as_ptr(),
                 dims_len,
             )
@@ -258,20 +258,18 @@ impl Interpreter {
     /// - C -> channel
     /// - H -> height
     /// - W -> width
-    pub fn resize_tensor_by_nchw<T: TensorType, M: TensorMachine>(
+    pub fn resize_tensor_by_nchw<H: HalideType, M: TensorMachine>(
         &self,
-        tensor: TensorViewMut<'_, T::H, M>,
+        tensor: &mut TensorRef<H, M>,
         batch: u16,
         channel: u16,
         height: u16,
         width: u16,
-    ) where
-        <T as TensorType>::H: HalideType,
-    {
+    ) {
         unsafe {
             mnn_sys::Interpreter_resizeTensorByNCHW(
                 self.inner,
-                tensor.tensor,
+                tensor.as_ptr(),
                 batch.into(),
                 channel.into(),
                 height.into(),
@@ -363,14 +361,15 @@ impl Interpreter {
         &self,
         session: &'s crate::Session,
         name: impl AsRef<str>,
-    ) -> Result<TensorViewMut<'s, H, Device>> {
+    ) -> Result<&mut TensorRef<H, Device>> {
         let name = name.as_ref();
         let c_name = std::ffi::CString::new(name).change_context(ErrorKind::AsciiError)?;
         let input = unsafe {
             mnn_sys::Interpreter_getSessionInput(self.inner, session.inner, c_name.as_ptr())
         };
         ensure!(!input.is_null(), ErrorKind::TensorError; format!("Input tensor \"{name}\" not found"));
-        let tensor = unsafe { Tensor::<crate::View<&mut H>, Device>::from_ptr(input) };
+        let tensor = unsafe { crate::tensor::from_raw_parts_mut(input) };
+        // let tensor = unsafe { Tensor::<crate::View<&mut H>, Device>::from_ptr(input) };
         let shape = tensor.shape();
         ensure!(!shape.as_ref().contains(&-1), ErrorKind::DynamicTensorError);
         ensure!(
@@ -380,7 +379,7 @@ impl Interpreter {
             };
             format!("Input tensor \"{name}\" is not of type {}", std::any::type_name::<H>())
         );
-        Ok(unsafe { Tensor::from_ptr(input) })
+        Ok(tensor)
     }
 
     /// Get the raw input tensor of a session by name
@@ -404,14 +403,14 @@ impl Interpreter {
         &self,
         session: &'s crate::Session,
         name: impl AsRef<str>,
-    ) -> Result<TensorViewMut<'s, H, Device>> {
+    ) -> Result<&mut TensorRef<H, Device>> {
         let name = name.as_ref();
         let c_name = std::ffi::CString::new(name).change_context(ErrorKind::AsciiError)?;
         let input = unsafe {
             mnn_sys::Interpreter_getSessionInput(self.inner, session.inner, c_name.as_ptr())
         };
         ensure!(!input.is_null(), ErrorKind::TensorError; format!("Input tensor \"{name}\" not found"));
-        let tensor = unsafe { Tensor::from_ptr(input) };
+        let tensor = unsafe { crate::tensor::from_raw_parts_mut(input) };
         ensure!(
             tensor.is_type_of::<H>(),
             ErrorKind::HalideTypeMismatch {

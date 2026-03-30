@@ -6,7 +6,7 @@ pub mod list;
 mod raw;
 mod tensor_ref;
 pub use raw::RawTensor;
-pub use tensor_ref::TensorRef;
+pub use tensor_ref::{TensorRef, from_raw_parts, from_raw_parts_mut};
 
 use mnn_sys::HalideType;
 
@@ -235,27 +235,14 @@ where
             __marker: PhantomData,
         }
     }
-    /// Copies the data from a host tensor to the self tensor
-    pub fn copy_from_host_tensor<'a>(&mut self, tensor: TensorView<'a, H, Host>) -> Result<()>
-    where
-        H: 'a,
-    {
-        assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
-        let ret = unsafe { Tensor_copyFromHostTensor(self.tensor, tensor.tensor) };
-        crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
-        Ok(())
-    }
 
-    /// Copies the data from the self tensor to a host tensor
-    pub fn copy_to_host_tensor<'a>(&self, tensor: TensorViewMut<'a, H, Host>) -> Result<()>
-    where
-        H: 'a,
-    {
-        assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
-        let ret = unsafe { Tensor_copyToHostTensor(self.tensor, tensor.tensor) };
-        crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
-        Ok(())
-    }
+    // /// Copies the data from a host tensor to the self tensor
+    // pub fn copy_from_host_tensor(&mut self, tensor: &TensorRef<H, Host>) -> Result<()> {
+    //     assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
+    //     let ret = unsafe { Tensor_copyFromHostTensor(self.tensor, tensor.tensor) };
+    //     crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
+    //     Ok(())
+    // }
 
     /// Print the shape of the tensor
     pub fn print_shape(&self) {
@@ -269,11 +256,6 @@ where
         unsafe {
             Tensor_print(self.tensor);
         }
-    }
-
-    /// Check if the tensor is dynamic and needs resizing
-    pub fn is_dynamic_unsized(&self) -> bool {
-        self.shape().as_ref().contains(&-1)
     }
 
     /// DO not use this function directly
@@ -290,21 +272,9 @@ where
         unsafe { Tensor_buffer_mut(self.tensor) }
     }
 
-    /// Get the dimension type of the tensor
-    pub fn get_dimension_type(&self) -> DimensionType {
-        debug_assert!(!self.tensor.is_null());
-        From::from(unsafe { Tensor_getDimensionType(self.tensor) })
-    }
-
     /// Get the data type of the tensor
     pub fn get_type(&self) -> mnn_sys::halide_type_t {
         unsafe { Tensor_getType(self.tensor) }
-    }
-
-    /// Check if the tensor is of the specified data type
-    pub fn is_type_of<Ha: HalideType>(&self) -> bool {
-        let htc = halide_type_of::<Ha>();
-        unsafe { Tensor_isTypeOf(self.tensor, htc) }
     }
 
     /// # Safety
@@ -343,7 +313,7 @@ where
             let dm_type = self.get_dimension_type();
             let mut host = Tensor::new(shape, dm_type);
             host.fill(value);
-            self.copy_from_host_tensor(host.view())
+            self.copy_from_host_tensor(&host)
                 .expect("Failed to copy data from host tensor");
         } else {
             unreachable!()
@@ -404,33 +374,6 @@ where
         T: MutableTensorType<H = H>,
     {
         self.try_host_mut().expect("Failed to get tensor host_mut")
-    }
-}
-
-impl<T, H> Tensor<T, Device>
-where
-    T: TensorType<H = H>,
-    T::H: HalideType,
-{
-    /// Try to wait for the device tensor to finish processing
-    pub fn wait(&self, map_type: MapType, finish: bool) {
-        unsafe {
-            Tensor_wait(self.tensor, map_type, finish as i32);
-        }
-    }
-
-    /// Create a host tensor from the device tensor with same dimensions and data type and
-    /// optionally copy the data from the device tensor
-    pub fn create_host_tensor_from_device(&self, copy_data: bool) -> Tensor<Owned<H>, Host> {
-        let shape = self.shape();
-        let dm_type = self.get_dimension_type();
-        let mut out = Tensor::new(shape, dm_type);
-
-        if copy_data {
-            self.copy_to_host_tensor(out.view_mut())
-                .expect("Failed to copy data from device tensor");
-        }
-        out
     }
 }
 

@@ -511,7 +511,7 @@ pub fn test_sync_api() {
             let mut input = interpreter.input::<f32>(session, "input")?;
             let mut cpu_input = input.create_host_tensor_from_device(false);
             cpu_input.host_mut().copy_from_slice(&my_arr);
-            input.copy_from_host_tensor(cpu_input.view())?;
+            input.copy_from_host_tensor(&cpu_input)?;
             Ok(())
         })
         .expect("Failed to run");
@@ -551,7 +551,7 @@ pub fn test_sync_api_race() {
                 let mut cpu_tensor = tensor.create_host_tensor_from_device(false);
                 cpu_tensor.host_mut().fill(1.0f32);
                 tensor
-                    .copy_from_host_tensor(cpu_tensor.view())
+                    .copy_from_host_tensor(&cpu_tensor)
                     .expect("Could not copy tensor");
             });
             Ok(())
@@ -575,7 +575,7 @@ pub fn test_sync_api_race() {
                 let mut cpu_tensor = tensor.create_host_tensor_from_device(false);
                 cpu_tensor.host_mut().fill(1.0f32);
                 tensor
-                    .copy_from_host_tensor(cpu_tensor.view())
+                    .copy_from_host_tensor(&cpu_tensor)
                     .expect("Could not copy tensor");
             });
             Ok(())
@@ -592,7 +592,7 @@ pub fn test_sync_api_race() {
                 let mut cpu_tensor = tensor.create_host_tensor_from_device(false);
                 cpu_tensor.host_mut().fill(1.0f32);
                 tensor
-                    .copy_from_host_tensor(cpu_tensor.view())
+                    .copy_from_host_tensor(&cpu_tensor)
                     .expect("Could not copy tensor");
             });
             Ok(())
