@@ -9,7 +9,7 @@ documentation = { workspace = true }
 
 
 [dependencies]
-error-stack = "0.6.0"
+error-stack = "0.7.0"
 mnn = { workspace = true }
 ndarray_0_17 = { package = "ndarray", version = "0.17", optional = true }
 ndarray_0_16 = { package = "ndarray", version = "0.16", optional = true }

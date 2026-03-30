@@ -491,7 +491,7 @@ pub fn exec_bench(
     let output = child.wait().cc(BenchError)?;
     if !output.success() {
         return Err(Report::new(BenchError)
-            .attach_printable(format!("Failed to execute {exec}", exec = exec.display())));
+            .attach(format!("Failed to execute {exec}", exec = exec.display())));
     }
     progress.finish_and_clear();
     let metrics = serde_json::from_reader(child_stdout).cc(BenchError)?;

@@ -104,7 +104,7 @@ const _: () = {
             let data = self
                 .as_slice()
                 .ok_or(MnnBridge)
-                .attach_printable("Failed to get ndarray as a continuous slice")?;
+                .attach("Failed to get ndarray as a continuous slice")?;
 
             Ok(mnn::Tensor::borrowed(shape, data))
         }
@@ -122,7 +122,7 @@ const _: () = {
             let data = self
                 .as_slice_mut()
                 .ok_or(MnnBridge)
-                .attach_printable("Failed to get ndarray as a continuous slice")?;
+                .attach("Failed to get ndarray as a continuous slice")?;
             Ok(mnn::Tensor::borrowed_mut(shape, data))
         }
     }

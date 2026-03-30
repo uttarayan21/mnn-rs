@@ -1,7 +1,7 @@
 use mnn_sys::*;
 use std::{ffi::CString, mem::ManuallyDrop};
 
-use crate::{prelude::*, BackendConfig};
+use crate::{BackendConfig, prelude::*};
 
 /// Backend used for running the model
 ///
@@ -154,10 +154,10 @@ impl core::str::FromStr for ForwardType {
             #[cfg(feature = "coreml")]
             "coreml" => Ok(ForwardType::CoreML),
             _ => Err(MNNError::new(crate::ErrorKind::ParseError)
-                .attach_printable(format!(
+                .attach(format!(
                     "Invalid ForwardType: {s}, maybe you might need to enable feature {s}"
                 ))
-                .attach_printable(format!(
+                .attach(format!(
                     "Valid ForwardType: {}",
                     ForwardType::list().join(", ")
                 ))),

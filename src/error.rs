@@ -106,7 +106,7 @@ macro_rules! ensure {
     ($cond:expr, $kind:expr; $($printable:expr),*) => {
         if !($cond) {
             return Err(crate::error::MNNError::new($kind)
-                $(.attach_printable($printable))*
+                $(.attach($printable))*
             )
         }
     };
@@ -121,7 +121,7 @@ macro_rules! ensure {
         if (!$cond) {
             return Err(error_stack::Report::new($from)
                 .change_context($to)
-                $(.attach_printable($printable))*
+                $(.attach($printable))*
             )
         }
     };
@@ -147,11 +147,11 @@ impl From<error_stack::Report<ErrorKind>> for MNNError {
 }
 
 impl MNNError {
-    pub(crate) fn attach_printable(
+    pub(crate) fn attach(
         self,
         printable: impl core::fmt::Display + core::fmt::Debug + Send + Sync + 'static,
     ) -> Self {
-        let kind = self.kind.attach_printable(printable);
+        let kind = self.kind.attach(printable);
         Self { kind }
     }
 }

@@ -1,5 +1,5 @@
 #![deny(missing_docs)]
-use crate::{prelude::*, Device, RawTensor, TensorRef};
+use crate::{Device, RawTensor, TensorRef, prelude::*};
 use mnn_sys::HalideType;
 
 /// A list of tensors returned by interpreter input/output queries
@@ -200,7 +200,8 @@ impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
     pub fn tensor_mut<H: HalideType>(&mut self) -> Result<&'t mut TensorRef<H, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        let tensor = unsafe { crate::tensor::from_raw_parts_mut((*self.tensor_info).tensor.cast()) };
+        let tensor =
+            unsafe { crate::tensor::from_raw_parts_mut((*self.tensor_info).tensor.cast()) };
         let shape = tensor.shape();
         ensure!(!shape.as_ref().contains(&-1), ErrorKind::DynamicTensorError);
         ensure!(
@@ -219,7 +220,8 @@ impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
     ) -> Result<&'t mut TensorRef<H, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        let tensor = unsafe { crate::tensor::from_raw_parts_mut((*self.tensor_info).tensor.cast()) };
+        let tensor =
+            unsafe { crate::tensor::from_raw_parts_mut((*self.tensor_info).tensor.cast()) };
         ensure!(
             tensor.is_type_of::<H>(),
             ErrorKind::HalideTypeMismatch {
@@ -269,7 +271,8 @@ impl<'t, 'tl> TensorInfo<'t, 'tl> {
     ) -> Result<&'t mut TensorRef<H, Device>> {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        let tensor = unsafe { crate::tensor::from_raw_parts_mut((*self.tensor_info).tensor.cast()) };
+        let tensor =
+            unsafe { crate::tensor::from_raw_parts_mut((*self.tensor_info).tensor.cast()) };
         ensure!(
             tensor.is_type_of::<H>(),
             ErrorKind::HalideTypeMismatch {

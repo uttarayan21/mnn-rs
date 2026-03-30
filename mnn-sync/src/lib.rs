@@ -159,17 +159,15 @@ impl SessionRunnerState {
             Self::Unloaded(_) => {
                 self.load(config)?;
                 Ok(self.loaded_mut().ok_or_else(|| {
-                    Report::new(ErrorKind::SyncError).attach_printable("Failed to load session")
+                    Report::new(ErrorKind::SyncError).attach("Failed to load session")
                 })?)
             }
-            Self::Poisoned => {
-                Err(Report::new(ErrorKind::SyncError).attach_printable("Poisoned Session"))?
-            }
+            Self::Poisoned => Err(Report::new(ErrorKind::SyncError).attach("Poisoned Session"))?,
         }
     }
 
     fn poisoned() -> Result<()> {
-        Err(Report::new(ErrorKind::SyncError).attach_printable("Poisoned Session"))?;
+        Err(Report::new(ErrorKind::SyncError).attach("Poisoned Session"))?;
         Ok(())
     }
 }
@@ -265,13 +263,12 @@ impl SessionRunner {
         let now = std::time::Instant::now();
         let result = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| f(self)))
             .unwrap_or_else(|e| {
-                let mut err =
-                    Report::new(ErrorKind::SyncError).attach_printable(format!("{:?}", e));
+                let mut err = Report::new(ErrorKind::SyncError).attach(format!("{:?}", e));
                 if let Some(location) = e.downcast_ref::<core::panic::Location>() {
-                    err = err.attach_printable(format!("{:?}", location));
+                    err = err.attach(format!("{:?}", location));
                 };
                 if let Some(backtrace) = e.downcast_ref::<std::backtrace::Backtrace>() {
-                    err = err.attach_printable(format!("{:?}", backtrace));
+                    err = err.attach(format!("{:?}", backtrace));
                 };
                 let ret = Err(MNNError::from(err));
                 #[cfg(feature = "tracing")]
@@ -300,7 +297,7 @@ impl SessionHandle {
                     .receiver
                     .recv()
                     .change_context(ErrorKind::SyncError)
-                    .attach_printable("Internal Error: Unable to recv (Sender possibly dropped without calling close)")?;
+                    .attach("Internal Error: Unable to recv (Sender possibly dropped without calling close)")?;
                 match cmd {
                     CallbackEnum::Callback(f) => {
                         let sr = ss.sr().inspect_err(|e| {
@@ -309,7 +306,7 @@ impl SessionHandle {
                         })?;
                         sr.run_callback(f)
                             .map_err(|e| e.into_inner())
-                            .attach_printable("Failure running the callback")
+                            .attach("Failure running the callback")
                             .inspect_err(|e| {
                                 #[cfg(feature = "tracing")]
                                 tracing::error!("Error running callback: {:?}", e);
@@ -319,20 +316,20 @@ impl SessionHandle {
                         let res = ss.unload();
                         tx.send(res)
                             .change_context(ErrorKind::SyncError)
-                            .attach_printable("Internal Error: Failed to send unload message")?;
+                            .attach("Internal Error: Failed to send unload message")?;
                     }
                     CallbackEnum::Load(tx) => {
                         let res = ss.load();
                         tx.send(res)
                             .change_context(ErrorKind::SyncError)
-                            .attach_printable("Internal Error: Failed to send load message")?;
+                            .attach("Internal Error: Failed to send load message")?;
                     }
 
                     CallbackEnum::Status(tx) => {
                         let res = ss.is_loaded();
                         tx.send(res)
                             .change_context(ErrorKind::SyncError)
-                            .attach_printable("Internal Error: Failed to send status message")?;
+                            .attach("Internal Error: Failed to send status message")?;
                     }
                     CallbackEnum::Close => {
                         #[cfg(feature = "tracing")]
@@ -353,7 +350,7 @@ impl SessionHandle {
                 tracing::trace!("Unloading session before closing thread");
                 sr.unload()
                     .change_context(ErrorKind::SyncError)
-                    .attach_printable("Internal Error: Failed to unload session")?;
+                    .attach("Internal Error: Failed to unload session")?;
             } else if !sr.is_unloaded() {
                 #[cfg(feature = "tracing")]
                 tracing::warn!("Session was not loaded, no need to unload");
@@ -364,7 +361,7 @@ impl SessionHandle {
         let handle = builder
             .spawn(spawner)
             .change_context(ErrorKind::SyncError)
-            .attach_printable("Internal Error: Failed to spawn thread")?;
+            .attach("Internal Error: Failed to spawn thread")?;
 
         Ok(Self {
             handle: Some(handle),
@@ -378,7 +375,7 @@ impl SessionHandle {
 
     fn ensure_running(&self) -> Result<()> {
         if !self.is_running() {
-            Err(Report::new(ErrorKind::SyncError).attach_printable("Session thread is not running"))?
+            Err(Report::new(ErrorKind::SyncError).attach("Session thread is not running"))?
         }
         Ok(())
     }
@@ -398,15 +395,15 @@ impl SessionHandle {
             let result = f(sr);
             tx.send(result)
                 .change_context(ErrorKind::SyncError)
-                .attach_printable("Internal Error: Failed to send result via oneshot channel")?;
+                .attach("Internal Error: Failed to send result via oneshot channel")?;
             Ok(())
         };
         self.sender
             .send(CallbackEnum::Callback(Box::new(wrapped_f)))
-            .map_err(|e| Report::new(ErrorKind::SyncError).attach_printable(e.to_string()))?;
+            .map_err(|e| Report::new(ErrorKind::SyncError).attach(e.to_string()))?;
         rx.recv()
             .change_context(ErrorKind::SyncError)
-            .attach_printable("Internal Error: Unable to recv message")?
+            .attach("Internal Error: Unable to recv message")?
     }
 
     pub async fn run_async<R: Send + Sync + 'static>(
@@ -424,35 +421,35 @@ impl SessionHandle {
             let result = f(sr);
             tx.send(result)
                 .change_context(ErrorKind::SyncError)
-                .attach_printable("Internal Error: Failed to send result via oneshot channel")?;
+                .attach("Internal Error: Failed to send result via oneshot channel")?;
             Ok(())
         };
         self.sender
             .send(CallbackEnum::Callback(Box::new(wrapped_f)))
-            .map_err(|e| Report::new(ErrorKind::SyncError).attach_printable(e.to_string()))?;
+            .map_err(|e| Report::new(ErrorKind::SyncError).attach(e.to_string()))?;
         rx.await
             .change_context(ErrorKind::SyncError)
-            .attach_printable("Internal Error: Unable to recv message")?
+            .attach("Internal Error: Unable to recv message")?
     }
 
     pub fn unload(&self) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(CallbackEnum::Unload(tx))
-            .map_err(|e| Report::new(ErrorKind::SyncError).attach_printable(e.to_string()))?;
+            .map_err(|e| Report::new(ErrorKind::SyncError).attach(e.to_string()))?;
         rx.recv()
             .change_context(ErrorKind::SyncError)
-            .attach_printable("Internal Error: Failed to recv unload message")?
+            .attach("Internal Error: Failed to recv unload message")?
     }
 
     pub async fn unload_async(&self) -> Result<()> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(CallbackEnum::Unload(tx))
-            .map_err(|e| Report::new(ErrorKind::SyncError).attach_printable(e.to_string()))?;
+            .map_err(|e| Report::new(ErrorKind::SyncError).attach(e.to_string()))?;
         rx.await
             .change_context(ErrorKind::SyncError)
-            .attach_printable("Internal Error: Failed to recv unload message")?
+            .attach("Internal Error: Failed to recv unload message")?
     }
 
     pub fn load(&self) -> Result<()> {
@@ -460,10 +457,10 @@ impl SessionHandle {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(CallbackEnum::Load(tx))
-            .map_err(|e| Report::new(ErrorKind::SyncError).attach_printable(e.to_string()))?;
+            .map_err(|e| Report::new(ErrorKind::SyncError).attach(e.to_string()))?;
         rx.recv()
             .change_context(ErrorKind::SyncError)
-            .attach_printable("Internal Error: Failed to recv load message")?
+            .attach("Internal Error: Failed to recv load message")?
     }
 
     pub async fn load_async(&self) -> Result<()> {
@@ -471,27 +468,27 @@ impl SessionHandle {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(CallbackEnum::Load(tx))
-            .map_err(|e| Report::new(ErrorKind::SyncError).attach_printable(e.to_string()))?;
+            .map_err(|e| Report::new(ErrorKind::SyncError).attach(e.to_string()))?;
         rx.await
             .change_context(ErrorKind::SyncError)
-            .attach_printable("Internal Error: Failed to recv load message")?
+            .attach("Internal Error: Failed to recv load message")?
     }
 
     pub fn is_loaded(&self) -> Result<bool> {
         let (tx, rx) = oneshot::channel();
         self.sender
             .send(CallbackEnum::Status(tx))
-            .map_err(|e| Report::new(ErrorKind::SyncError).attach_printable(e.to_string()))?;
+            .map_err(|e| Report::new(ErrorKind::SyncError).attach(e.to_string()))?;
         Ok(rx
             .recv()
             .change_context(ErrorKind::SyncError)
-            .attach_printable("Internal Error: Failed to recv status message")?)
+            .attach("Internal Error: Failed to recv status message")?)
     }
 
     pub fn close(&self) -> Result<()> {
         self.sender
             .send(CallbackEnum::Close)
-            .map_err(|e| Report::new(ErrorKind::SyncError).attach_printable(e.to_string()))?;
+            .map_err(|e| Report::new(ErrorKind::SyncError).attach(e.to_string()))?;
         Ok(())
     }
 }

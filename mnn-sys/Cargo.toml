@@ -1,6 +1,6 @@
 [package]
 name = "mnn-sys"
-version = "0.1.2"
+version = "0.2.0"
 edition = "2021"
 links = "mnn"
 license = { workspace = true }
