@@ -1,5 +1,5 @@
 {
-  description = "A simple rust flake using rust-overlay and craneLib";
+  description = "A rust wrapper over mnn";
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
