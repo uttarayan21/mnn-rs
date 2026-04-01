@@ -1,11 +1,11 @@
 //! The interpreter module provides the `Interpreter` struct which is used to load and run models.
-use crate::{TensorList, TensorRef};
+use crate::{
+    AnyTensorRef, AsTensorShape, Device, ScheduleConfig, TensorList, TensorRef, prelude::*,
+};
+use mnn_sys::HalideType;
 use std::{ffi::CStr, path::Path, sync::Arc};
 
-use crate::{AsTensorShape, Device, RawTensor, ScheduleConfig, prelude::*};
-use mnn_sys::HalideType;
-
-pub(crate) type TensorCallbackT = Box<dyn Fn(&[RawTensor], OperatorInfo) -> bool>;
+pub(crate) type TensorCallbackT = Box<dyn Fn(&[&AnyTensorRef], OperatorInfo) -> bool>;
 
 #[repr(transparent)]
 pub(crate) struct TensorCallback {
@@ -35,14 +35,14 @@ impl TensorCallback {
     }
 
     #[cfg(test)]
-    pub(crate) fn identity() -> impl Fn(&[RawTensor], OperatorInfo) -> bool {
+    pub(crate) fn identity() -> impl Fn(&[&AnyTensorRef], OperatorInfo) -> bool {
         |_, _| true
     }
 }
 
 impl<F> From<F> for TensorCallback
 where
-    F: Fn(&[RawTensor], OperatorInfo) -> bool + 'static,
+    F: Fn(&[&AnyTensorRef], OperatorInfo) -> bool + 'static,
 {
     fn from(f: F) -> Self {
         Self {
@@ -53,7 +53,7 @@ where
 
 impl<T> From<Option<T>> for TensorCallback
 where
-    T: Fn(&[RawTensor], OperatorInfo) -> bool + 'static,
+    T: Fn(&[&AnyTensorRef], OperatorInfo) -> bool + 'static,
 {
     fn from(f: Option<T>) -> Self {
         match f {
@@ -242,7 +242,7 @@ impl Interpreter {
         unsafe {
             mnn_sys::Interpreter_resizeTensor(
                 self.inner,
-                tensor.inner,
+                tensor.as_ptr(),
                 dims.shape.as_ptr(),
                 dims_len,
             )
@@ -383,14 +383,15 @@ impl Interpreter {
         &self,
         session: &'s mut crate::Session,
         name: impl AsRef<str>,
-    ) -> Result<RawTensor<'s>> {
+    ) -> Result<&'s AnyTensorRef> {
         let name = name.as_ref();
         let c_name = std::ffi::CString::new(name).change_context(ErrorKind::AsciiError)?;
         let input = unsafe {
             mnn_sys::Interpreter_getSessionInput(self.inner, session.inner, c_name.as_ptr())
         };
         ensure!(!input.is_null(), ErrorKind::TensorError; format!("Input tensor \"{name}\" not found"));
-        Ok(RawTensor::from_ptr(input))
+        // let out =
+        Ok(unsafe { AnyTensorRef::from_ptr::<'s>(input) })
     }
 
     /// # Safety
@@ -469,14 +470,14 @@ impl Interpreter {
         &self,
         session: &'s crate::Session,
         name: impl AsRef<str>,
-    ) -> Result<RawTensor<'s>> {
+    ) -> Result<&'s AnyTensorRef> {
         let name = name.as_ref();
         let c_name = std::ffi::CString::new(name).change_context(ErrorKind::AsciiError)?;
         let output = unsafe {
             mnn_sys::Interpreter_getSessionOutput(self.inner, session.inner, c_name.as_ptr())
         };
         ensure!(!output.is_null(), ErrorKind::IOError;format!("Output tensor \"{name}\" not found"));
-        Ok(RawTensor::from_ptr(output))
+        Ok(unsafe { AnyTensorRef::from_ptr::<'s>(output) })
     }
 
     /// Run a session
@@ -503,8 +504,8 @@ impl Interpreter {
     pub fn run_session_with_callback(
         &self,
         session: &crate::session::Session,
-        before: impl Fn(&[RawTensor], OperatorInfo) -> bool + 'static,
-        end: impl Fn(&[RawTensor], OperatorInfo) -> bool + 'static,
+        before: impl Fn(&[&AnyTensorRef], OperatorInfo) -> bool + 'static,
+        end: impl Fn(&[&AnyTensorRef], OperatorInfo) -> bool + 'static,
         sync: bool,
     ) -> Result<()> {
         let sync = sync as libc::c_int;
@@ -564,9 +565,7 @@ impl Interpreter {
     /// Wait for all output tensors to be ready after computation
     pub fn wait(&self, session: &crate::session::Session) {
         self.outputs(session).iter().for_each(|tinfo| {
-            tinfo
-                .raw_tensor()
-                .wait(mnn_sys::MapType::MAP_TENSOR_READ, true);
+            AnyTensorRef::wait(tinfo.raw_tensor(), mnn_sys::MapType::MAP_TENSOR_READ, true);
         });
     }
 

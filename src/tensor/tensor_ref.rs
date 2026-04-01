@@ -30,70 +30,7 @@ where
 impl<H: HalideType, M: TensorMachine> TensorRef<H, M> {
     /// Get a raw pointer to the underlying MNN tensor
     pub(crate) fn as_ptr(&self) -> *mut mnn_sys::Tensor {
-        self as *const TensorRef<H, M> as *mut mnn_sys::Tensor
-    }
-
-    /// Get the device id of the tensor
-    pub fn device_id(&self) -> u64 {
-        unsafe { Tensor_deviceId(self.as_ptr()) }
-    }
-
-    /// Get the shape of the tensor
-    pub fn shape(&self) -> TensorShape {
-        unsafe { Tensor_shape(self.as_ptr()) }.into()
-    }
-
-    /// Get the dimensions of the tensor
-    #[doc(alias = "dims")]
-    pub fn dimensions(&self) -> usize {
-        unsafe { Tensor_dimensions(self.as_ptr()) as usize }
-    }
-
-    /// Get the width of the tensor
-    pub fn width(&self) -> u32 {
-        unsafe { Tensor_width(self.as_ptr()) as u32 }
-    }
-
-    /// Get the height of the tensor
-    pub fn height(&self) -> u32 {
-        unsafe { Tensor_height(self.as_ptr()) as u32 }
-    }
-
-    /// Get the channel size of the tensor
-    pub fn channel(&self) -> u32 {
-        unsafe { Tensor_channel(self.as_ptr()) as u32 }
-    }
-
-    /// Get the batch size of the tensor
-    pub fn batch(&self) -> u32 {
-        unsafe { Tensor_batch(self.as_ptr()) as u32 }
-    }
-
-    /// Get the size of the tensor when counted by bytes
-    pub fn size(&self) -> usize {
-        unsafe { Tensor_usize(self.as_ptr()) }
-    }
-
-    /// Get the size of the tensor when counted by elements
-    pub fn element_size(&self) -> usize {
-        unsafe { Tensor_elementSize(self.as_ptr()) as usize }
-    }
-
-    /// Check if the tensor is of the specified data type
-    pub fn is_type_of<Ha: HalideType>(&self) -> bool {
-        let htc = halide_type_of::<Ha>();
-        unsafe { Tensor_isTypeOf(self.as_ptr(), htc) }
-    }
-
-    /// Get the dimension type of the tensor
-    pub fn get_dimension_type(&self) -> DimensionType {
-        debug_assert!(!self.as_ptr().is_null());
-        From::from(unsafe { Tensor_getDimensionType(self.as_ptr()) })
-    }
-
-    /// Check if the tensor is dynamic and needs resizing
-    pub fn is_dynamic_unsized(&self) -> bool {
-        self.shape().as_ref().contains(&-1)
+        self as *const Self as *mut mnn_sys::Tensor
     }
 
     /// Copies the data from a host tensor to the self.as_ptr()
@@ -110,6 +47,27 @@ impl<H: HalideType, M: TensorMachine> TensorRef<H, M> {
         let ret = unsafe { Tensor_copyToHostTensor(self.as_ptr(), tensor.as_ptr()) };
         crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
         Ok(())
+    }
+}
+
+impl<H, M> core::ops::Deref for TensorRef<H, M>
+where
+    H: HalideType,
+    M: TensorMachine,
+{
+    type Target = AnyTensorRef;
+    fn deref(&self) -> &Self::Target {
+        unsafe { &*(self.as_ptr() as *const AnyTensorRef) }
+    }
+}
+
+impl<H, M> core::ops::DerefMut for TensorRef<H, M>
+where
+    H: HalideType,
+    M: TensorMachine,
+{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        unsafe { &mut *(self.as_ptr().cast()) }
     }
 }
 

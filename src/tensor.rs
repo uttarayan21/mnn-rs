@@ -3,9 +3,11 @@ use core::marker::PhantomData;
 use mnn_sys::*;
 /// Tensor list and iteration utilities
 pub mod list;
-mod raw;
+// mod raw;
+mod tensor_any;
 mod tensor_ref;
-pub use raw::RawTensor;
+// pub use raw::RawTensor;
+pub use tensor_any::AnyTensorRef;
 pub use tensor_ref::{TensorRef, from_raw_parts, from_raw_parts_mut};
 
 use mnn_sys::HalideType;
@@ -278,14 +280,10 @@ where
     }
 
     /// # Safety
-    /// This is very unsafe do not use this unless you know what you are doing
-    pub unsafe fn into_raw(self) -> RawTensor<'static> {
-        let out = RawTensor {
-            inner: self.tensor,
-            __marker: PhantomData,
-        };
-        core::mem::forget(self);
-        out
+    ///
+    /// Type erase the tensor
+    pub unsafe fn as_any_tensor<'a>(&'a self) -> &'a AnyTensorRef {
+        unsafe { AnyTensorRef::from_ptr(self.tensor) }
     }
 }
 
@@ -457,7 +455,11 @@ impl core::ops::DerefMut for TensorShape {
 
 impl core::fmt::Debug for TensorShape {
     fn fmt(&self, f: &mut core::fmt::Formatter<'_>) -> core::fmt::Result {
-        write!(f, "{:?}", &self.shape[..self.size])
+        // write!(f, "{:?}", &self.shape[..self.size])
+        f.debug_tuple("TensorShape")
+            .field(&&self.shape[..self.size])
+            .field(&self.tensor_size())
+            .finish()
     }
 }
 
@@ -552,7 +554,9 @@ where
         assert_eq!(
             size,
             input.len(),
-            "Input data length does not match the tensor shape"
+            "Input data length ({}) does not match the tensor shape ({:?})",
+            input.len(),
+            shape
         );
         let tensor = unsafe {
             Tensor_createWith(
@@ -564,10 +568,15 @@ where
             )
         };
         debug_assert!(!tensor.is_null());
-        Self {
+        let output = Self {
             tensor,
             __marker: PhantomData,
-        }
+        };
+
+        debug_assert!(output.size() == 0);
+        todo!();
+
+        output
     }
 }
 impl<A> Tensor<View<&mut A>, Host, A>

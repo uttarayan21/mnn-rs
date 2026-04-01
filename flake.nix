@@ -3,6 +3,7 @@
 
   inputs = {
     nixpkgs.url = "github:nixos/nixpkgs/nixos-unstable";
+    nixpkgs-stable.url = "github:nixos/nixpkgs/25.11";
     flake-utils.url = "github:numtide/flake-utils";
     crane.url = "github:ipetkov/crane";
     nix-github-actions = {
@@ -32,6 +33,7 @@
     crane,
     flake-utils,
     nixpkgs,
+    nixpkgs-stable,
     rust-overlay,
     mnn-overlay,
     advisory-db,
@@ -55,6 +57,9 @@
               };
             })
           ];
+        };
+        stablePkgs = import nixpkgs-stable {
+          inherit system;
         };
         inherit (pkgs) lib;
 
@@ -221,6 +226,15 @@
                   rust-bindgen
                   rustToolchainWithRustAnalyzer
                   mnn
+                  ccache
+                  (stablePkgs.python312.withPackages (ps:
+                    with ps; [
+                      paddle2onnx
+                      # (paddle2onnx.overrideAttrs
+                      #   (old: {
+                      #     disabled = null;
+                      # }))
+                    ]))
                 ]
                 ++ (
                   lib.optionals pkgs.stdenv.isLinux [

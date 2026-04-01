@@ -1,5 +1,5 @@
 #![deny(missing_docs)]
-use crate::{Device, RawTensor, TensorRef, prelude::*};
+use crate::{AnyTensorRef, Device, TensorRef, prelude::*};
 use mnn_sys::HalideType;
 
 /// A list of tensors returned by interpreter input/output queries
@@ -232,10 +232,10 @@ impl<'t, 'tl> TensorInfoMut<'t, 'tl> {
     }
 
     /// This function return's the raw tensor without any sort of type-checking or shape-checking
-    pub fn raw_tensor(&self) -> RawTensor<'t> {
+    pub fn raw_tensor(&self) -> &AnyTensorRef {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        RawTensor::from_ptr(unsafe { (*self.tensor_info).tensor.cast() })
+        unsafe { AnyTensorRef::from_ptr((*self.tensor_info).tensor.cast()) }
     }
 }
 
@@ -283,9 +283,9 @@ impl<'t, 'tl> TensorInfo<'t, 'tl> {
     }
 
     /// This function return's the raw tensor without any sort of type-checking or shape-checking
-    pub fn raw_tensor(&self) -> RawTensor<'t> {
+    pub fn raw_tensor(&self) -> &AnyTensorRef {
         debug_assert!(!self.tensor_info.is_null());
         unsafe { debug_assert!(!(*self.tensor_info).tensor.is_null()) };
-        RawTensor::from_ptr(unsafe { (*self.tensor_info).tensor.cast() })
+        unsafe { AnyTensorRef::from_ptr((*self.tensor_info).tensor.cast()) }
     }
 }

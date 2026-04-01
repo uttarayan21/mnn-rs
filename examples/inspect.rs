@@ -77,7 +77,7 @@ pub fn main() -> anyhow::Result<()> {
 
     time!(loop {
         println!("--------------------------------Inputs--------------------------------");
-        interpreter.inputs(&session).iter_mut().for_each(|mut x| {
+        interpreter.inputs(&mut session).iter_mut().for_each(|mut x| {
             unsafe {
             match cli.input_data_type {
                 DataType::F32 => {
