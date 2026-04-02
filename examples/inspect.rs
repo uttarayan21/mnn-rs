@@ -81,19 +81,19 @@ pub fn main() -> anyhow::Result<()> {
             unsafe {
             match cli.input_data_type {
                 DataType::F32 => {
-                    let mut tensor = x.tensor_unresized::<f32>().expect("No tensor");
+                    let tensor = x.tensor_unresized::<f32>().expect("No tensor");
                     println!("{}: {:?}", x.name(), tensor.shape());
-                    tensor.fill(1.0f32);
+                    tensor.fill(1.0f32).expect("Failed to fill");
                 },
                 DataType::U8 => {
-                    let mut tensor = x.tensor_unresized::<u8>().expect("No tensor");
+                    let tensor = x.tensor_unresized::<u8>().expect("No tensor");
                     println!("{}: {:?}", x.name(), tensor.shape());
-                    tensor.fill(1u8);
+                    tensor.fill(1u8).expect("Failed to fill");
                 },
                 DataType::I8 => {
-                    let mut tensor = x.tensor_unresized::<i8>().expect("No tensor");
+                    let tensor = x.tensor_unresized::<i8>().expect("No tensor");
                     println!("{}: {:?}", x.name(), tensor.shape());
-                    tensor.fill(1i8);
+                    tensor.fill(1i8).expect("Failed to fill");
                 },
             };
             }

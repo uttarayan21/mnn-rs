@@ -282,7 +282,7 @@ where
     /// # Safety
     ///
     /// Type erase the tensor
-    pub unsafe fn as_any_tensor<'a>(&'a self) -> &'a AnyTensorRef {
+    pub unsafe fn as_any_tensor(&self) -> &AnyTensorRef {
         unsafe { AnyTensorRef::from_ptr(self.tensor) }
     }
 }
@@ -574,7 +574,6 @@ where
         };
 
         debug_assert!(output.element_size() == size);
-        // todo!();
         output
     }
 }

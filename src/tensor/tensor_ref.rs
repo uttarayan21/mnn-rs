@@ -84,10 +84,10 @@ where
 
     /// Create a host tensor from the device tensor with same dimensions and data type and
     /// optionally copy the data from the device tensor
-    pub fn create_host_tensor_from_device(&self, copy_data: bool) -> Tensor<Owned<T>, Host> {
+    pub fn create_host_tensor_from_device(&self, copy_data: bool) -> super::Tensor<Owned<T>, Host> {
         let shape = self.shape();
         let dm_type = self.get_dimension_type();
-        let mut out = Tensor::new(shape, dm_type);
+        let mut out = super::Tensor::new(shape, dm_type);
 
         if copy_data {
             self.copy_to_host_tensor(&mut out)
