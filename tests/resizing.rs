@@ -23,7 +23,7 @@ pub fn test_resizing() -> Result<()> {
     net.resize_tensor(&mut pain, [2048, 2048, 3]);
 
     net.resize_session(&mut session);
-    let inputs = net.inputs(&session);
+    let inputs = net.inputs(&mut session);
     for tensor_info in inputs.iter() {
         let tensor = tensor_info.tensor::<f32>().unwrap();
         println!(

@@ -1,5 +1,5 @@
 [workspace]
-members = [".", "mnn-bridge", "mnn-sync", "mnn-sys", "tools/bencher"]
+members = [".", "mnn-bridge", "mnn-sync", "mnn-sys"]
 [workspace.package]
 license = "Apache-2.0"
 description = "Rust bindings for MNN, a lightweight deep neural network inference engine."

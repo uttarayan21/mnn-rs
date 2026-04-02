@@ -573,9 +573,8 @@ where
             __marker: PhantomData,
         };
 
-        debug_assert!(output.size() == 0);
-        todo!();
-
+        debug_assert!(output.element_size() == size);
+        // todo!();
         output
     }
 }
