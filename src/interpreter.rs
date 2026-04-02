@@ -116,14 +116,9 @@ pub enum SessionMode {
     ResizeFix = mnn_sys::SessionMode::Session_Resize_Fix,
 }
 
-#[cfg(windows)]
-type SessionModeType = i32;
-#[cfg(unix)]
-type SessionModeType = u32;
-
 impl SessionMode {
-    fn to_mnn_sys(self) -> SessionModeType {
-        self as SessionModeType
+    fn to_mnn_sys(self) -> mnn_sys::SessionMode::Type {
+        self as mnn_sys::SessionMode::Type
     }
 }
 

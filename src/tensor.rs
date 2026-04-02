@@ -355,13 +355,7 @@ where
         let shape = self.shape();
         let mut out = Tensor::new(shape, self.get_dimension_type());
         out.host_mut().copy_from_slice(data);
-        // Cloning / deepCopy  is not supported by mnn currently https://github.com/alibaba/MNN/blob/c67a96156614801ba47191188a327102cb49145e/include/MNN/Tensor.hpp#L131"]
-
-        // let tensor_ptr = unsafe { Tensor_clone(self.tensor) };
-        // Self {
-        //     tensor: tensor_ptr,
-        //     __marker: PhantomData,
-        // }
+        // Cloning / deepCopy  is not supported by mnn currently https://github.com/alibaba/MNN/blob/6b1db4c2eacf8193e6b7a1841acb6e31a1938e82/include/MNN/Tensor.hpp#L131
 
         out
     }
@@ -631,4 +625,15 @@ fn test_tensor_invalid_size() {
     let shape = [300, 400, 500];
     let date = vec![0; 100];
     Tensor::<View<&i32>, Host>::borrowed(shape, &date);
+}
+
+#[test]
+fn test_tensor_clone() {
+    let shape = [1, 2, 3];
+    let data = vec![1, 3, 5, 8, 1, 23];
+    let mut tensor = Tensor::new(shape, DimensionType::Caffe);
+    tensor.host_mut().copy_from_slice(&data);
+
+    let tensor_cloned = tensor.clone();
+    assert_eq!(tensor_cloned.host(), data);
 }
