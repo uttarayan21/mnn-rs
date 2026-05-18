@@ -17,60 +17,60 @@ impl AnyTensorRef {
 
     /// Get the device id of the tensor
     pub fn device_id(&self) -> u64 {
-        unsafe { Tensor_deviceId(self.as_ptr()) }
+        unsafe { mnn_sys::Tensor_deviceId(self.as_ptr()) }
     }
 
     /// Get the shape of the tensor
     pub fn shape(&self) -> TensorShape {
-        unsafe { Tensor_shape(self.as_ptr()) }.into()
+        unsafe { mnn_sys::Tensor_shape(self.as_ptr()) }.into()
     }
 
     /// Get the dimensions of the tensor
     #[doc(alias = "dims")]
     pub fn dimensions(&self) -> usize {
-        unsafe { Tensor_dimensions(self.as_ptr()) as usize }
+        unsafe { mnn_sys::Tensor_dimensions(self.as_ptr()) as usize }
     }
 
     /// Get the width of the tensor
     pub fn width(&self) -> u32 {
-        unsafe { Tensor_width(self.as_ptr()) as u32 }
+        unsafe { mnn_sys::Tensor_width(self.as_ptr()) as u32 }
     }
 
     /// Get the height of the tensor
     pub fn height(&self) -> u32 {
-        unsafe { Tensor_height(self.as_ptr()) as u32 }
+        unsafe { mnn_sys::Tensor_height(self.as_ptr()) as u32 }
     }
 
     /// Get the channel size of the tensor
     pub fn channel(&self) -> u32 {
-        unsafe { Tensor_channel(self.as_ptr()) as u32 }
+        unsafe { mnn_sys::Tensor_channel(self.as_ptr()) as u32 }
     }
 
     /// Get the batch size of the tensor
     pub fn batch(&self) -> u32 {
-        unsafe { Tensor_batch(self.as_ptr()) as u32 }
+        unsafe { mnn_sys::Tensor_batch(self.as_ptr()) as u32 }
     }
 
     /// Get the size of the tensor when counted by bytes
     pub fn size(&self) -> usize {
-        unsafe { Tensor_usize(self.as_ptr()) }
+        unsafe { mnn_sys::Tensor_usize(self.as_ptr()) }
     }
 
     /// Get the size of the tensor when counted by elements
     pub fn element_size(&self) -> usize {
-        unsafe { Tensor_elementSize(self.as_ptr()) as usize }
+        unsafe { mnn_sys::Tensor_elementSize(self.as_ptr()) as usize }
     }
 
     /// Check if the tensor is of the specified data type
     pub fn is_type_of<Ha: HalideType>(&self) -> bool {
-        let htc = halide_type_of::<Ha>();
-        unsafe { Tensor_isTypeOf(self.as_ptr(), htc) }
+        let htc = mnn_sys::halide_type_of::<Ha>();
+        unsafe { mnn_sys::Tensor_isTypeOf(self.as_ptr(), htc) }
     }
 
     /// Get the dimension type of the tensor
     pub fn get_dimension_type(&self) -> DimensionType {
         debug_assert!(!self.as_ptr().is_null());
-        From::from(unsafe { Tensor_getDimensionType(self.as_ptr()) })
+        From::from(unsafe { mnn_sys::Tensor_getDimensionType(self.as_ptr()) })
     }
 
     /// Check if the tensor is dynamic and needs resizing
@@ -80,8 +80,15 @@ impl AnyTensorRef {
 
     /// Copies the data from a host tensor to the self.as_ptr()
     pub fn copy_from_host_tensor(&mut self, tensor: &AnyTensorRef) -> Result<()> {
-        assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
-        let ret = unsafe { Tensor_copyFromHostTensor(self.as_ptr(), tensor.as_ptr()) };
+        // assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
+        crate::ensure!(
+            self.size() == tensor.size(),
+            ErrorKind::SizeMismatch {
+                expected: self.size(),
+                got: tensor.size()
+            }
+        );
+        let ret = unsafe { mnn_sys::Tensor_copyFromHostTensor(self.as_ptr(), tensor.as_ptr()) };
         crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
         Ok(())
     }
@@ -89,7 +96,7 @@ impl AnyTensorRef {
     /// Copies the data from the self.as_ptr() to a host tensor
     pub fn copy_to_host_tensor(&self, tensor: &mut AnyTensorRef) -> Result<()> {
         assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
-        let ret = unsafe { Tensor_copyToHostTensor(self.as_ptr(), tensor.as_ptr()) };
+        let ret = unsafe { mnn_sys::Tensor_copyToHostTensor(self.as_ptr(), tensor.as_ptr()) };
         crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
         Ok(())
     }
@@ -114,7 +121,7 @@ impl AnyTensorRef {
     /// Try to wait for the device tensor to finish processing
     pub fn wait(this: &Self, map_type: MapType, finish: bool) {
         unsafe {
-            Tensor_wait(this.as_ptr(), map_type, finish as i32);
+            mnn_sys::Tensor_wait(this.as_ptr(), map_type, finish as i32);
         }
     }
 }

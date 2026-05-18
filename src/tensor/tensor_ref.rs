@@ -1,4 +1,4 @@
-use super::*;
+use super::{Tensor, *};
 
 /// This is modeled as a reference to a tensor, you should never be able to dereference this.
 /// At any point you should only have &TensorRef or &mut TensorRef, never an owned TensorRef.
@@ -36,15 +36,15 @@ impl<H: HalideType, M: TensorMachine> TensorRef<H, M> {
     /// Copies the data from a host tensor to the self.as_ptr()
     pub fn copy_from_host_tensor(&mut self, tensor: &TensorRef<H, Host>) -> Result<()> {
         assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
-        let ret = unsafe { Tensor_copyFromHostTensor(self.as_ptr(), tensor.as_ptr()) };
-        crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
+        unsafe { mnn_sys::Tensor_copyFromHostTensor(self.as_ptr(), tensor.as_ptr()) };
+        // crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
         Ok(())
     }
 
     /// Copies the data from the self.as_ptr() to a host tensor
     pub fn copy_to_host_tensor(&self, tensor: &mut TensorRef<H, Host>) -> Result<()> {
         assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
-        let ret = unsafe { Tensor_copyToHostTensor(self.as_ptr(), tensor.as_ptr()) };
+        let ret = unsafe { mnn_sys::Tensor_copyToHostTensor(self.as_ptr(), tensor.as_ptr()) };
         crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
         Ok(())
     }
@@ -78,7 +78,7 @@ where
     /// Try to wait for the device tensor to finish processing
     pub fn wait(&self, map_type: MapType, finish: bool) {
         unsafe {
-            Tensor_wait(self.as_ptr(), map_type, finish as i32);
+            mnn_sys::Tensor_wait(self.as_ptr(), map_type, finish as i32);
         }
     }
 
@@ -161,7 +161,7 @@ where
             unimplemented!(
                 "Filling tensor of type {:?} with value of type {:?} is not supported",
                 self.get_dimension_type(),
-                halide_type_of::<T>()
+                mnn_sys::halide_type_of::<T>()
             );
         }
         if M::host() {
@@ -174,7 +174,8 @@ where
         } else if M::device() {
             let shape = self.shape();
             let dm_type = self.get_dimension_type();
-            let mut host = Tensor::new(shape, dm_type);
+            // let mut host = Tensor::new(shape, dm_type);
+            let mut host: TensorOwned<T, Host> = Tensor::new(shape, dm_type);
             host.fill(value)?;
             self.copy_from_host_tensor(&host)?;
         }

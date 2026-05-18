@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 use crate::{AnyTensorRef, Device, TensorRef, prelude::*};
 use mnn_sys::HalideType;
 

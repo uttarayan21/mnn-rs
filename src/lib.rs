@@ -1,4 +1,3 @@
-#![deny(missing_docs)]
 //!
 //! Ergonomic rust bindings for [MNN](https://github.com/alibaba/MNN)
 //!

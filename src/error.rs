@@ -38,7 +38,7 @@ pub enum ErrorKind {
         got: usize,
     },
     /// Failed to copy tensor
-    #[error("Failed to copy tensor")]
+    #[error("Failed to copy tensor {0}")]
     TensorCopyFailed(i32),
     /// I/O Error
     #[error("IO Error")]

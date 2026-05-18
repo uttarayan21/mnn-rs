@@ -1,12 +1,8 @@
 use crate::prelude::*;
 use core::marker::PhantomData;
-use mnn_sys::*;
-/// Tensor list and iteration utilities
 pub mod list;
-// mod raw;
 mod tensor_any;
 mod tensor_ref;
-// pub use raw::RawTensor;
 pub use tensor_any::AnyTensorRef;
 pub use tensor_ref::{TensorRef, from_raw_parts, from_raw_parts_mut};
 
@@ -184,9 +180,10 @@ impl<'a, H: HalideType, M: TensorMachine> Tensor<View<&'a mut H>, M> {
 /// C -> Channel
 /// H -> Height
 /// W -> Width
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Default)]
 pub enum DimensionType {
     /// Caffe style dimensions or NCHW
+    #[default]
     Caffe,
     /// Caffe style dimensions with channel packed in 4 bytes or NC4HW4
     CaffeC4,
@@ -238,45 +235,30 @@ where
         }
     }
 
-    // /// Copies the data from a host tensor to the self tensor
-    // pub fn copy_from_host_tensor(&mut self, tensor: &TensorRef<H, Host>) -> Result<()> {
-    //     assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
-    //     let ret = unsafe { Tensor_copyFromHostTensor(self.tensor, tensor.tensor) };
-    //     crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
-    //     Ok(())
-    // }
-
-    /// Print the shape of the tensor
-    pub fn print_shape(&self) {
-        unsafe {
-            Tensor_printShape(self.tensor);
-        }
-    }
-
     /// Print the tensor
     pub fn print(&self) {
         unsafe {
-            Tensor_print(self.tensor);
+            mnn_sys::Tensor_print(self.tensor);
         }
     }
 
     /// DO not use this function directly
     /// # Safety
     /// This is just provided as a 1:1 compat mostly for possible later use
-    pub unsafe fn halide_buffer(&self) -> *const halide_buffer_t {
-        unsafe { Tensor_buffer(self.tensor) }
+    pub unsafe fn halide_buffer(&self) -> *const mnn_sys::halide_buffer_t {
+        unsafe { mnn_sys::Tensor_buffer(self.tensor) }
     }
 
     /// Do not use this function directly
     /// # Safety
     /// This is just provided as a 1:1 compat mostly for possible later use
-    pub unsafe fn halide_buffer_mut(&self) -> *mut halide_buffer_t {
-        unsafe { Tensor_buffer_mut(self.tensor) }
+    pub unsafe fn halide_buffer_mut(&self) -> *mut mnn_sys::halide_buffer_t {
+        unsafe { mnn_sys::Tensor_buffer_mut(self.tensor) }
     }
 
     /// Get the data type of the tensor
     pub fn get_type(&self) -> mnn_sys::halide_type_t {
-        unsafe { Tensor_getType(self.tensor) }
+        unsafe { mnn_sys::Tensor_getType(self.tensor) }
     }
 
     /// # Safety
@@ -292,22 +274,23 @@ where
     H: HalideType,
     M: TensorMachine,
 {
-    /// Create a new tensor with the specified shape and dimension type
+    /// Create a new tensor with the specified shape and dimension type this allocates the tensor
+    /// internally and the data is "owned" by the tensor itself.
     pub fn new(shape: impl AsTensorShape, dm_type: DimensionType) -> Self {
         let shape = shape.as_tensor_shape();
         let tensor = unsafe {
             if M::device() {
-                Tensor_createDevice(
+                mnn_sys::Tensor_createDevice(
                     shape.shape.as_ptr(),
                     shape.size,
-                    halide_type_of::<H>(),
+                    mnn_sys::halide_type_of::<H>(),
                     dm_type.to_mnn_sys(),
                 )
             } else {
-                Tensor_createWith(
+                mnn_sys::Tensor_createWith(
                     shape.shape.as_ptr(),
                     shape.size,
-                    halide_type_of::<H>(),
+                    mnn_sys::halide_type_of::<H>(),
                     core::ptr::null_mut(),
                     dm_type.to_mnn_sys(),
                 )
@@ -321,28 +304,20 @@ where
     }
 
     /// Create a new tensor with the specified shape and dimension type and fill it with the data from the provided vector
-    pub fn from_shape_vec(shape: impl AsTensorShape, dm_type: DimensionType, data: Vec<H>) -> Self {
+    pub fn from_shape_data(shape: impl AsTensorShape, dm_type: DimensionType, data: &[H]) -> Self {
         let shape = shape.as_tensor_shape();
         assert_eq!(
             shape.tensor_size(),
             data.len(),
-            "Data length does not match tensor shape"
+            "Data length ({}) does not match tensor shape ({:?})",
+            data.len(),
+            shape
         );
-        let tensor = unsafe {
-            Tensor_createWith(
-                shape.shape.as_ptr(),
-                shape.size,
-                halide_type_of::<H>(),
-                data.as_ptr().cast_mut().cast(),
-                dm_type.to_mnn_sys(),
-            )
-        };
-        debug_assert!(!tensor.is_null());
-        core::mem::forget(data);
-        Self {
-            tensor,
-            __marker: PhantomData,
-        }
+        let mut tensor = Self::new(shape, dm_type);
+        let b = Tensor::borrowed(shape, dm_type, data);
+        tensor.copy_from_host_tensor(&b).unwrap();
+        // tensor.host_mut().copy_from_slice(data);
+        tensor
     }
 }
 
@@ -541,7 +516,11 @@ where
     A: HalideType,
 {
     /// Try to create a ref tensor from any array-like type
-    pub fn borrowed(shape: impl AsTensorShape, input: impl AsRef<[A]>) -> Self {
+    pub fn borrowed(
+        shape: impl AsTensorShape,
+        dm_type: DimensionType,
+        input: impl AsRef<[A]>,
+    ) -> Self {
         let shape = shape.as_tensor_shape();
         let size = shape.tensor_size();
         let input = input.as_ref();
@@ -553,12 +532,12 @@ where
             shape
         );
         let tensor = unsafe {
-            Tensor_createWith(
+            mnn_sys::Tensor_createWith(
                 shape.shape.as_ptr(),
                 shape.size,
-                halide_type_of::<A>(),
+                mnn_sys::halide_type_of::<A>(),
                 input.as_ptr().cast_mut().cast(),
-                DimensionType::Caffe.to_mnn_sys(),
+                dm_type.to_mnn_sys(),
             )
         };
         debug_assert!(!tensor.is_null());
@@ -576,7 +555,11 @@ where
     A: HalideType,
 {
     /// Try to create a mutable ref tensor from any array-like type
-    pub fn borrowed_mut(shape: impl AsTensorShape, mut input: impl AsMut<[A]>) -> Self {
+    pub fn borrowed_mut(
+        shape: impl AsTensorShape,
+        dm_type: DimensionType,
+        mut input: impl AsMut<[A]>,
+    ) -> Self {
         let shape = shape.as_tensor_shape();
         let size = shape.tensor_size();
         let input = input.as_mut();
@@ -586,12 +569,12 @@ where
             "Input data length does not match the tensor shape"
         );
         let tensor = unsafe {
-            Tensor_createWith(
+            mnn_sys::Tensor_createWith(
                 shape.shape.as_ptr(),
                 shape.size,
-                halide_type_of::<A>(),
+                mnn_sys::halide_type_of::<A>(),
                 input.as_mut_ptr().cast(),
-                DimensionType::Caffe.to_mnn_sys(),
+                dm_type.to_mnn_sys(),
             )
         };
         debug_assert!(!tensor.is_null());
@@ -606,7 +589,7 @@ where
 fn test_tensor_borrowed() {
     let shape = [1, 2, 3];
     let data = vec![1, 2, 3, 4, 5, 6];
-    let tensor = Tensor::<View<&i32>, Host>::borrowed(shape, &data);
+    let tensor = Tensor::<View<&i32>, Host>::borrowed(shape, DimensionType::Caffe, &data);
     assert_eq!(tensor.shape().as_ref(), shape);
     assert_eq!(tensor.host(), data.as_slice());
 }
@@ -614,7 +597,8 @@ fn test_tensor_borrowed() {
 fn test_tensor_borrow_mut() {
     let shape = [1, 2, 3];
     let mut data = vec![1, 2, 3, 4, 5, 6];
-    let mut tensor = Tensor::<View<&mut i32>, Host>::borrowed_mut(shape, &mut data);
+    let mut tensor =
+        Tensor::<View<&mut i32>, Host>::borrowed_mut(shape, DimensionType::Caffe, &mut data);
     tensor.host_mut().fill(1);
     assert_eq!(data, &[1, 1, 1, 1, 1, 1]);
 }
@@ -624,7 +608,7 @@ fn test_tensor_borrow_mut() {
 fn test_tensor_invalid_size() {
     let shape = [300, 400, 500];
     let date = vec![0; 100];
-    Tensor::<View<&i32>, Host>::borrowed(shape, &date);
+    Tensor::<View<&i32>, Host>::borrowed(shape, DimensionType::default(), &date);
 }
 
 #[test]
@@ -636,4 +620,17 @@ fn test_tensor_clone() {
 
     let tensor_cloned = tensor.clone();
     assert_eq!(tensor_cloned.host(), data);
+}
+
+#[test]
+fn test_tensor_creation() {
+    let shape = [4, 2, 8];
+    let data: &[u8; 64] = b"4756ff762c7a7909a1ec0015836296807602fb2d44e1cac15e057e22b2258040";
+
+    let tensor = {
+        let data = data.iter().copied().map(|v| v as f32).collect::<Vec<_>>();
+        TensorOwned::<f32, Host>::from_shape_data(shape, DimensionType::Caffe, &data)
+    };
+    let data = data.iter().copied().map(|v| v as f32).collect::<Vec<_>>();
+    assert_eq!(tensor.host(), data);
 }
