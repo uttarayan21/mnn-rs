@@ -210,10 +210,10 @@
           default = pkgs.mkShell (commonArgs
             // {
               MNN_SRC = null;
-              LLDB_DEBUGSERVER_PATH = "/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Versions/A/Resources/debugserver";
-              OCL_ICD_VENDORS = lib.optionalString pkgs.stdenv.isLinux "/run/opengl-driver/etc/OpenCL/vendors";
+              LLDB_DEBUGSERVER_PATH = lib.optionalString pkgs.stdenv.isDarwin
+                "/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Versions/A/Resources/debugserver";
               LD_LIBRARY_PATH = lib.optionalString pkgs.stdenv.isLinux
-                "${pkgs.lib.makeLibraryPath [pkgs.ocl-icd]}:/run/opengl-driver/lib";
+                (pkgs.lib.makeLibraryPath [pkgs.ocl-icd]);
               packages = with pkgs;
                 [
                   cargo-audit
