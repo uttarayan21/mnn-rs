@@ -5,6 +5,7 @@ target
 *.ppm
 lama
 *.json
+!mnn-sys/build/checksums.json
 *.cache
 result
 .env

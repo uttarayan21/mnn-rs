@@ -1,0 +1,10 @@
+{
+  "version": "3.5.0",
+  "checksums": {
+    "android_armv7_armv8_cpu_opencl_vulkan": "sha256:b5513459ee5d70dec98e7a0763ce2d09a9824897c150069e65b2b1a04570c573",
+    "ios_armv82_cpu_metal_coreml": "sha256:fd9b6c5769718286f07ff300897c72ff6511a1d2a25ef79b3b2f8b2b3313281a",
+    "linux_x64_cpu_opencl": "sha256:a9f4b00bf7c8473b3ef3c47873df84512ebf452d4422a4fde0a70ee81e073a17",
+    "windows_x64_cpu_opencl": "sha256:e37dbed6a5a6c26122239468d7fc8569d003c7f4a12c8a8024a33660fb13e4b7",
+    "macos_x64_arm82_cpu_opencl_metal": "sha256:dec927b86f32ef4351c5af527d54ec0afe0bef0b9b1b2bf94e59e3ae55bf42eb"
+  }
+}

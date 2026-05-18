@@ -13,13 +13,33 @@ pub const SUFFIXES: [&str; 5] = [
     "macos_x64_arm82_cpu_opencl_metal",
 ];
 
-pub const CHECKSUMS: [&str; 5] = [
-    "sha256:f85050dfcab114da9d389c3a4dcde8421cdce5a767aab5dbd1a5f0debc8b704a",
-    "sha256:2405ef73ab406844be9d16768a82dd76bec7aefaf05634eaad2f5d7202587aa0",
-    "sha256:db42a3ed0eb4af791c872afc0fc82d9a13236a834c557c679fe4c9e39209129b",
-    "sha256:2243dfea8e8364beed3fccb5be17b804d89feae91cbdd4ce577f147347f07555",
-    "sha256:2bb04d451fe7587107d970322cbc80083c381bc50b06dd3ae3f2349eb5c82a89",
-];
+const CHECKSUMS_JSON: &str = include_str!("checksums.json");
+
+/// Look up the SHA-256 digest recorded in `checksums.json` for `suffix`.
+///
+/// Returns `"sha256:placeholder"` when the json's version field doesn't match
+/// the requested MNN version, signalling `verify_checksum` to skip the check.
+fn checksum_for(version: &str, suffix: &str) -> Result<String> {
+    let value: serde_json::Value = serde_json::from_str(CHECKSUMS_JSON)
+        .context("Failed to parse mnn-sys/build/checksums.json")?;
+    let recorded_version = value
+        .get("version")
+        .and_then(|v| v.as_str())
+        .context("checksums.json missing 'version' field")?;
+    if recorded_version != version {
+        eprintln!(
+            "warning: checksums.json is for MNN {} but MNN_VERSION={}; skipping checksum verification",
+            recorded_version, version
+        );
+        return Ok("sha256:placeholder".to_string());
+    }
+    value
+        .get("checksums")
+        .and_then(|c| c.get(suffix))
+        .and_then(|c| c.as_str())
+        .map(|s| s.to_string())
+        .with_context(|| format!("checksums.json has no entry for suffix '{}'", suffix))
+}
 
 const USER_AGENT: &str = concat!("mnn-rs-build/", env!("CARGO_PKG_VERSION"));
 
@@ -150,10 +170,11 @@ pub fn url_name_checksum(version: impl AsRef<str>) -> Result<(String, String, St
         (arch, os) => anyhow::bail!("Prebuilt MNN is not available for target {}-{}", arch, os),
     };
 
+    let suffix = SUFFIXES[idx];
     Ok((
-        format!("{}_{}.zip", pre_url, SUFFIXES[idx]),
-        format!("mnn_{version}_{}", SUFFIXES[idx]),
-        CHECKSUMS[idx].to_string(),
+        format!("{}_{}.zip", pre_url, suffix),
+        format!("mnn_{version}_{}", suffix),
+        checksum_for(version, suffix)?,
     ))
 }
 
