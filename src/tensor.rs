@@ -269,6 +269,26 @@ where
     }
 }
 
+impl<H> Tensor<Owned<H>, Host>
+where
+    H: HalideType + Copy,
+{
+    /// Create a new tensor with the specified shape and dimension type and fill it with the data from the provided vector
+    pub fn from_shape_data(shape: impl AsTensorShape, dm_type: DimensionType, data: &[H]) -> Self {
+        let shape = shape.as_tensor_shape();
+        assert_eq!(
+            shape.tensor_size(),
+            data.len(),
+            "Data length ({}) does not match tensor shape ({:?})",
+            data.len(),
+            shape
+        );
+        let mut tensor = Self::new(shape, dm_type);
+        tensor.host_mut().copy_from_slice(data);
+        tensor
+    }
+}
+
 impl<H, M> Tensor<Owned<H>, M>
 where
     H: HalideType,
@@ -303,22 +323,6 @@ where
         }
     }
 
-    /// Create a new tensor with the specified shape and dimension type and fill it with the data from the provided vector
-    pub fn from_shape_data(shape: impl AsTensorShape, dm_type: DimensionType, data: &[H]) -> Self {
-        let shape = shape.as_tensor_shape();
-        assert_eq!(
-            shape.tensor_size(),
-            data.len(),
-            "Data length ({}) does not match tensor shape ({:?})",
-            data.len(),
-            shape
-        );
-        let mut tensor = Self::new(shape, dm_type);
-        let b = Tensor::borrowed(shape, dm_type, data);
-        tensor.copy_from_host_tensor(&b).unwrap();
-        // tensor.host_mut().copy_from_slice(data);
-        tensor
-    }
 }
 
 impl<H> Clone for Tensor<Owned<H>, Host>

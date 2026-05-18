@@ -54,7 +54,7 @@ fn main() -> Result<()> {
 
     #[cfg(feature = "download")]
     {
-        let version = std::env::var("MNN_VERSION").unwrap_or_else(|_| "3.4.0".to_string());
+        let version = std::env::var("MNN_VERSION").unwrap_or_else(|_| "3.5.0".to_string());
         download_prebuilt_mnn(&version, &out_dir).with_context(|| {
             format!(
                 "Failed to download prebuilt MNN version {} for target {}-{}",
