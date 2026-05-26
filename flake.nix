@@ -230,18 +230,14 @@
                   rustToolchainWithRustAnalyzer
                   mnn
                   ccache
-                  (stablePkgs.python312.withPackages (ps:
-                    with ps; [
-                      paddle2onnx
-                      # (paddle2onnx.overrideAttrs
-                      #   (old: {
-                      #     disabled = null;
-                      # }))
-                    ]))
                 ]
                 ++ (
                   lib.optionals pkgs.stdenv.isLinux [
                     cargo-llvm-cov
+                    (stablePkgs.python312.withPackages (ps:
+                      with ps; [
+                        paddle2onnx
+                      ]))
                   ]
                 );
             });
