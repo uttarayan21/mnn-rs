@@ -2,6 +2,7 @@
 target
 .DS_Store
 *.mnn
+examples/assets/*.txt
 *.ppm
 lama
 *.json
