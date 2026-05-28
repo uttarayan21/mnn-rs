@@ -322,7 +322,6 @@ where
             __marker: PhantomData,
         }
     }
-
 }
 
 impl<H> Clone for Tensor<Owned<H>, Host>
@@ -515,19 +514,14 @@ mod tensor_tests {
     }
 }
 
-impl<A> Tensor<View<&A>, Host, A>
+impl<'a, A> Tensor<View<&'a A>, Host, A>
 where
     A: HalideType,
 {
     /// Try to create a ref tensor from any array-like type
-    pub fn borrowed(
-        shape: impl AsTensorShape,
-        dm_type: DimensionType,
-        input: impl AsRef<[A]>,
-    ) -> Self {
+    pub fn borrowed(shape: impl AsTensorShape, dm_type: DimensionType, input: &'a [A]) -> Self {
         let shape = shape.as_tensor_shape();
         let size = shape.tensor_size();
-        let input = input.as_ref();
         assert_eq!(
             size,
             input.len(),
@@ -554,7 +548,7 @@ where
         output
     }
 }
-impl<A> Tensor<View<&mut A>, Host, A>
+impl<'a, A> Tensor<View<&'a mut A>, Host, A>
 where
     A: HalideType,
 {
@@ -562,11 +556,10 @@ where
     pub fn borrowed_mut(
         shape: impl AsTensorShape,
         dm_type: DimensionType,
-        mut input: impl AsMut<[A]>,
+        input: &'a mut [A],
     ) -> Self {
         let shape = shape.as_tensor_shape();
         let size = shape.tensor_size();
-        let input = input.as_mut();
         assert_eq!(
             size,
             input.len(),
