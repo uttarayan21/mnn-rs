@@ -597,6 +597,7 @@ fn test_tensor_borrow_mut() {
     let mut tensor =
         Tensor::<View<&mut i32>, Host>::borrowed_mut(shape, DimensionType::Caffe, &mut data);
     tensor.host_mut().fill(1);
+    drop(tensor);
     assert_eq!(data, &[1, 1, 1, 1, 1, 1]);
 }
 
