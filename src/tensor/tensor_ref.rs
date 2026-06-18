@@ -2,6 +2,7 @@ use super::{Tensor, *};
 
 /// This is modeled as a reference to a tensor, you should never be able to dereference this.
 /// At any point you should only have &TensorRef or &mut TensorRef, never an owned TensorRef.
+#[repr(transparent)]
 pub struct TensorRef<H, M>
 where
     H: HalideType,
