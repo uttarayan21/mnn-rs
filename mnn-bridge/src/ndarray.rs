@@ -13,22 +13,24 @@ impl core::fmt::Display for MnnBridge {
 
 pub trait MnnToNdarray {
     type H: mnn::HalideType;
-    fn as_ndarray<D: Dimension>(&self) -> ndarray::ArrayView<Self::H, D> {
+    fn as_ndarray<'a, D: Dimension>(&'a self) -> ndarray::ArrayView<'a, Self::H, D> {
         self.try_as_ndarray::<D>()
             .expect("Failed to create ndarray::ArrayView from mnn::Tensor")
     }
-    fn try_as_ndarray<D: Dimension>(&self) -> Result<ndarray::ArrayView<Self::H, D>, MnnBridge>;
+    fn try_as_ndarray<'a, D: Dimension>(
+        &'a self,
+    ) -> Result<ndarray::ArrayView<'a, Self::H, D>, MnnBridge>;
 }
 
 pub trait MnnToNdarrayMut {
     type H: mnn::HalideType;
-    fn as_ndarray_mut<D: Dimension>(&mut self) -> ndarray::ArrayViewMut<Self::H, D> {
+    fn as_ndarray_mut<'a, D: Dimension>(&'a mut self) -> ndarray::ArrayViewMut<'a, Self::H, D> {
         self.try_as_ndarray_mut::<D>()
             .expect("Failed to create ndarray::ArrayViewMut from mnn::Tensor")
     }
-    fn try_as_ndarray_mut<D: Dimension>(
-        &mut self,
-    ) -> Result<ndarray::ArrayViewMut<Self::H, D>, MnnBridge>;
+    fn try_as_ndarray_mut<'a, D: Dimension>(
+        &'a mut self,
+    ) -> Result<ndarray::ArrayViewMut<'a, Self::H, D>, MnnBridge>;
 }
 
 use mnn::{Host, TensorView, TensorViewMut};
@@ -50,21 +52,21 @@ const _: () = {
         T::H: mnn::HalideType,
     {
         type H = T::H;
-        fn try_as_ndarray<D: Dimension>(
-            &self,
-        ) -> Result<ndarray::ArrayView<Self::H, D>, MnnBridge> {
+        fn try_as_ndarray<'a, D: Dimension>(
+            &'a self,
+        ) -> Result<ndarray::ArrayView<'a, Self::H, D>, MnnBridge> {
             let shape = self
                 .shape()
                 .as_ref()
-                .into_iter()
+                .iter()
                 .copied()
                 .map(|i| i as usize)
                 .collect::<Vec<_>>();
             let data = self.host();
-            Ok(ndarray::ArrayViewD::from_shape(shape, data)
+            ndarray::ArrayViewD::from_shape(shape, data)
                 .change_context(MnnBridge)?
                 .into_dimensionality()
-                .change_context(MnnBridge)?)
+                .change_context(MnnBridge)
         }
     }
 
@@ -74,21 +76,21 @@ const _: () = {
         T::H: mnn::HalideType,
     {
         type H = T::H;
-        fn try_as_ndarray_mut<D: Dimension>(
-            &mut self,
-        ) -> Result<ndarray::ArrayViewMut<Self::H, D>, MnnBridge> {
+        fn try_as_ndarray_mut<'a, D: Dimension>(
+            &'a mut self,
+        ) -> Result<ndarray::ArrayViewMut<'a, Self::H, D>, MnnBridge> {
             let shape = self
                 .shape()
                 .as_ref()
-                .into_iter()
+                .iter()
                 .copied()
                 .map(|i| i as usize)
                 .collect::<Vec<_>>();
             let data = self.host_mut();
-            Ok(ndarray::ArrayViewMutD::from_shape(shape, data)
+            ndarray::ArrayViewMutD::from_shape(shape, data)
                 .change_context(MnnBridge)?
                 .into_dimensionality()
-                .change_context(MnnBridge)?)
+                .change_context(MnnBridge)
         }
     }
 
@@ -99,7 +101,7 @@ const _: () = {
         T: mnn::HalideType,
     {
         type H = T;
-        fn as_mnn_tensor(&self) -> Result<TensorView<'_, T, Host>, MnnBridge> {
+        fn as_mnn_tensor<'a>(&'a self) -> Result<TensorView<'a, T, Host>, MnnBridge> {
             let shape = self.shape().iter().map(|i| *i as i32).collect::<Vec<_>>();
             let data = self
                 .as_slice()
@@ -140,7 +142,7 @@ const _: () = {
 pub fn test_tensor_to_ndarray_ref() {
     let mut tensor: mnn::Tensor<mnn::Owned<i32>, Host> =
         mnn::Tensor::new([1, 2, 3], mnn::DimensionType::Caffe);
-    tensor.fill(64);
+    tensor.fill(64).unwrap();
     let ndarr = tensor.as_ndarray();
     let ndarr_other = ndarray::Array3::from_shape_vec([1, 2, 3], [64; 6].to_vec()).unwrap();
     assert_eq!(ndarr, ndarr_other);
@@ -161,7 +163,7 @@ pub fn test_tensor_to_ndarray_ref_mut() {
 #[test]
 pub fn test_ndarray_to_tensor_ref_mut() {
     let mut arr = ndarray::Array3::from_shape_vec([1, 2, 3], [64; 6].to_vec()).unwrap();
-    arr.as_mnn_tensor_mut().unwrap().fill(600);
+    arr.as_mnn_tensor_mut().unwrap().fill(600).unwrap();
     assert_eq!(arr.as_slice().unwrap(), &[600; 6]);
 }
 
