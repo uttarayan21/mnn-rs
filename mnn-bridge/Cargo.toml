@@ -1,7 +1,7 @@
 [package]
 name = "mnn-bridge"
 version = "0.1.0"
-edition = "2021"
+edition = "2024"
 license = { workspace = true }
 description = { workspace = true }
 repository = { workspace = true }
@@ -14,13 +14,11 @@ mnn = { workspace = true }
 ndarray_0_17 = { package = "ndarray", version = "0.17", optional = true }
 ndarray_0_16 = { package = "ndarray", version = "0.16", optional = true }
 ndarray_0_15 = { package = "ndarray", version = "0.15", optional = true }
-# opencv = { version = "0.92.3", default-features = false, optional = true }
 
 [features]
 ndarray_0_15 = ["dep:ndarray_0_15"]
 ndarray_0_16 = ["dep:ndarray_0_16"]
 ndarray_0_17 = ["dep:ndarray_0_17"]
 ndarray = ["ndarray_0_17"]
-# opencv = ["dep:opencv"]
 
 default = ["ndarray"]

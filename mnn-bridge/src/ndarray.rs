@@ -106,7 +106,11 @@ const _: () = {
                 .ok_or(MnnBridge)
                 .attach("Failed to get ndarray as a continuous slice")?;
 
-            Ok(mnn::Tensor::borrowed(shape, data))
+            Ok(mnn::Tensor::borrowed(
+                shape,
+                mnn::DimensionType::default(),
+                data,
+            ))
         }
     }
 
@@ -123,7 +127,11 @@ const _: () = {
                 .as_slice_mut()
                 .ok_or(MnnBridge)
                 .attach("Failed to get ndarray as a continuous slice")?;
-            Ok(mnn::Tensor::borrowed_mut(shape, data))
+            Ok(mnn::Tensor::borrowed_mut(
+                shape,
+                mnn::DimensionType::default(),
+                data,
+            ))
         }
     }
 };
@@ -141,10 +149,12 @@ pub fn test_tensor_to_ndarray_ref() {
 #[test]
 pub fn test_tensor_to_ndarray_ref_mut() {
     let mut data = vec![100; 8 * 8 * 3];
-    let mut tensor: mnn::Tensor<mnn::View<&mut i32>, Host> =
-        mnn::Tensor::borrowed_mut([8, 8, 3], &mut data);
-    let mut ndarray = tensor.as_ndarray_mut::<Ix3>();
-    ndarray.fill(600);
+    {
+        let mut tensor: mnn::Tensor<mnn::View<&mut i32>, Host> =
+            mnn::Tensor::borrowed_mut([8, 8, 3], mnn::DimensionType::default(), &mut data);
+        let mut ndarray = tensor.as_ndarray_mut::<Ix3>();
+        ndarray.fill(600);
+    }
     assert_eq!(data, [600; 8 * 8 * 3]);
 }
 
