@@ -32,8 +32,9 @@ pub fn test_basic(backend: ForwardType) -> Result<()> {
     config.set_type(backend);
     let mut session = net.create_session(config)?;
     net.inputs(&mut session).iter_mut().for_each(|mut x| {
+        let name = x.name();
         let tensor = x.tensor_mut::<f32>().expect("No tensor");
-        println!("{}: {:?}", x.name(), tensor.shape());
+        println!("{}: {:?}", name, tensor.shape());
         tensor.fill(1.0f32).expect("Failed");
     });
     net.run_session(&session)?;

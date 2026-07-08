@@ -33,7 +33,7 @@
 ///
 /// Usage:
 ///   cargo run --example ocr -- <image>
-use image::{imageops::FilterType, DynamicImage, GrayImage, ImageDecoder, Luma, Rgb, RgbImage};
+use image::{DynamicImage, GrayImage, ImageDecoder, Luma, Rgb, RgbImage, imageops::FilterType};
 use imageproc::contours::find_contours;
 use imageproc::drawing::draw_line_segment_mut;
 use imageproc::geometry::min_area_rect;
@@ -61,6 +61,10 @@ struct Cli {
 
     #[arg(short, long, default_value = "cpu")]
     forward: mnn::ForwardType,
+
+    /// Backend for the recognition stage (defaults to --forward)
+    #[arg(long)]
+    rec_forward: Option<mnn::ForwardType>,
 
     /// Binarization threshold for the detection probability map
     #[arg(long, default_value = "0.3")]
@@ -195,10 +199,30 @@ fn unclip(q: &Quad, ratio: f32) -> Quad {
 /// Mean probability over the axis-aligned bounding box of `q` (coords in the
 /// detection-resized space, matching `prob`).
 fn box_score(prob: &[f32], w: u32, h: u32, q: &Quad) -> f32 {
-    let min_x = q.iter().map(|p| p.0).fold(f32::MAX, f32::min).floor().max(0.0) as u32;
-    let max_x = q.iter().map(|p| p.0).fold(f32::MIN, f32::max).ceil().min((w - 1) as f32) as u32;
-    let min_y = q.iter().map(|p| p.1).fold(f32::MAX, f32::min).floor().max(0.0) as u32;
-    let max_y = q.iter().map(|p| p.1).fold(f32::MIN, f32::max).ceil().min((h - 1) as f32) as u32;
+    let min_x = q
+        .iter()
+        .map(|p| p.0)
+        .fold(f32::MAX, f32::min)
+        .floor()
+        .max(0.0) as u32;
+    let max_x = q
+        .iter()
+        .map(|p| p.0)
+        .fold(f32::MIN, f32::max)
+        .ceil()
+        .min((w - 1) as f32) as u32;
+    let min_y = q
+        .iter()
+        .map(|p| p.1)
+        .fold(f32::MAX, f32::min)
+        .floor()
+        .max(0.0) as u32;
+    let max_y = q
+        .iter()
+        .map(|p| p.1)
+        .fold(f32::MIN, f32::max)
+        .ceil()
+        .min((h - 1) as f32) as u32;
     if max_x <= min_x || max_y <= min_y {
         return 0.0;
     }
@@ -210,11 +234,7 @@ fn box_score(prob: &[f32], w: u32, h: u32, q: &Quad) -> f32 {
             n += 1;
         }
     }
-    if n == 0 {
-        0.0
-    } else {
-        sum / n as f32
-    }
+    if n == 0 { 0.0 } else { sum / n as f32 }
 }
 
 fn quad_dims(q: &Quad) -> (f32, f32) {
@@ -281,12 +301,30 @@ fn db_postprocess(
 /// correct for rotated text but adds significant code). Rotates 90 deg for
 /// tall (vertical) crops.
 fn get_rotate_crop(img: &RgbImage, q: &Quad) -> RgbImage {
-    let min_x = q.iter().map(|p| p.0).fold(f32::MAX, f32::min).floor().max(0.0) as u32;
-    let max_x =
-        q.iter().map(|p| p.0).fold(f32::MIN, f32::max).ceil().min(img.width() as f32) as u32;
-    let min_y = q.iter().map(|p| p.1).fold(f32::MAX, f32::min).floor().max(0.0) as u32;
-    let max_y =
-        q.iter().map(|p| p.1).fold(f32::MIN, f32::max).ceil().min(img.height() as f32) as u32;
+    let min_x = q
+        .iter()
+        .map(|p| p.0)
+        .fold(f32::MAX, f32::min)
+        .floor()
+        .max(0.0) as u32;
+    let max_x = q
+        .iter()
+        .map(|p| p.0)
+        .fold(f32::MIN, f32::max)
+        .ceil()
+        .min(img.width() as f32) as u32;
+    let min_y = q
+        .iter()
+        .map(|p| p.1)
+        .fold(f32::MAX, f32::min)
+        .floor()
+        .max(0.0) as u32;
+    let max_y = q
+        .iter()
+        .map(|p| p.1)
+        .fold(f32::MIN, f32::max)
+        .ceil()
+        .min(img.height() as f32) as u32;
     let cw = max_x.saturating_sub(min_x).max(1);
     let ch = max_y.saturating_sub(min_y).max(1);
 
@@ -371,10 +409,7 @@ fn load_dict(path: &std::path::Path) -> anyhow::Result<Vec<String>> {
     Ok(dict)
 }
 
-fn build_session(
-    interpreter: &Interpreter,
-    forward: ForwardType,
-) -> anyhow::Result<Session<'_>> {
+fn build_session(interpreter: &Interpreter, forward: ForwardType) -> anyhow::Result<Session<'_>> {
     let mut config = ScheduleConfig::new();
     config.set_type(forward);
     let mut backend_config = BackendConfig::new();
@@ -403,7 +438,11 @@ fn main() -> anyhow::Result<()> {
     let mut det_session = build_session(&det, cli.forward)?;
 
     let (det_input_data, wd, hd, ratio_w, ratio_h) = det_preprocess(&image, cli.det_limit);
-    det.resize_tensor_by_name(&mut det_session, &cli.det_input, [1, 3, hd as i32, wd as i32])?;
+    det.resize_tensor_by_name(
+        &mut det_session,
+        &cli.det_input,
+        [1, 3, hd as i32, wd as i32],
+    )?;
     det.resize_session(&mut det_session);
 
     let input = det.input::<f32>(&mut det_session, &cli.det_input)?;
@@ -413,12 +452,26 @@ fn main() -> anyhow::Result<()> {
 
     let now = std::time::Instant::now();
     det.run_session(&det_session)?;
-    println!("Detection input {}x{}, inference {:?}", wd, hd, now.elapsed());
+    println!(
+        "Detection input {}x{}, inference {:?}",
+        wd,
+        hd,
+        now.elapsed()
+    );
 
     let det_out = det.output::<f32>(&det_session, &cli.det_output)?;
     let det_out_host = det_out.create_host_tensor_from_device(true);
     let prob = det_out_host.host();
-    let boxes = db_postprocess(prob, wd, hd, orig_w as f32, orig_h as f32, ratio_w, ratio_h, &cli);
+    let boxes = db_postprocess(
+        prob,
+        wd,
+        hd,
+        orig_w as f32,
+        orig_h as f32,
+        ratio_w,
+        ratio_h,
+        &cli,
+    );
     println!("Detected {} text region(s)", boxes.len());
 
     // --- Recognition ---
@@ -432,7 +485,7 @@ fn main() -> anyhow::Result<()> {
     };
 
     let rec = Interpreter::from_file(&cli.rec_model)?;
-    let mut rec_session = build_session(&rec, cli.forward)?;
+    let mut rec_session = build_session(&rec, cli.rec_forward.unwrap_or(cli.forward))?;
 
     let mut results: Vec<(Quad, String, f32)> = Vec::new();
     let mut checked_dict = false;
@@ -488,7 +541,14 @@ fn main() -> anyhow::Result<()> {
             "  [{}] conf={:.1}% box=[({:.0},{:.0}),({:.0},{:.0}),({:.0},{:.0}),({:.0},{:.0})] \"{}\"",
             i,
             conf * 100.0,
-            q[0].0, q[0].1, q[1].0, q[1].1, q[2].0, q[2].1, q[3].0, q[3].1,
+            q[0].0,
+            q[0].1,
+            q[1].0,
+            q[1].1,
+            q[2].0,
+            q[2].1,
+            q[3].0,
+            q[3].1,
             text
         );
     }

@@ -212,8 +212,10 @@
               MNN_SRC = null;
               LLDB_DEBUGSERVER_PATH = lib.optionalString pkgs.stdenv.isDarwin
                 "/Applications/Xcode.app/Contents/SharedFrameworks/LLDB.framework/Versions/A/Resources/debugserver";
+              # /run/opengl-driver/lib provides the NVIDIA driver stack
+              # (libcuda.so.1) needed by the cuda backend at run time.
               LD_LIBRARY_PATH = lib.optionalString pkgs.stdenv.isLinux
-                (pkgs.lib.makeLibraryPath [pkgs.ocl-icd]);
+                (pkgs.lib.makeLibraryPath [pkgs.ocl-icd] + ":/run/opengl-driver/lib");
               packages = with pkgs;
                 [
                   cargo-audit

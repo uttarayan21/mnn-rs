@@ -30,6 +30,7 @@
 //! - `vulkan`: Enable mnn Vulkan backend (unimplemented from rust wrapper)
 //! - `opencl`: Enable mnn OpenCL backend
 //! - `opengl`: Enable mnn OpenGL backend (unimplemented from rust wrapper)
+//! - `cuda`: Enable mnn CUDA backend (Linux only, requires CUDA toolkit)
 //! - `openmp`: Enable mnn Openmp ( disable the mnn-threadpool feature to enable this)
 //! - `mnn-threadpool`: Enable mnn threadpool ( enabled by default can't be used with openmp)
 //! - `sync`: Enable sync api
@@ -52,6 +53,7 @@
 //! | OpenCL      | ✅       | ✅    |
 //! | Metal       | ✅       | ✅    |
 //! | CoreML      | ✅       | 🚸    |
+//! | CUDA        | ✅       | 🚸    |
 //! | OpenGL      | ❌       | ❌    |
 //! | Vulkan      | ❌       | ❌    |
 //!

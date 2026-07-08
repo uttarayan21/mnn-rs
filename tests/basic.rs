@@ -46,6 +46,12 @@ fn test_basic_opencl() -> Result<(), Box<dyn std::error::Error>> {
     // drop(net);
     Ok(())
 }
+#[cfg(feature = "cuda")]
+#[test]
+#[ignore = "Needs an NVIDIA GPU"]
+fn test_basic_cuda() {
+    test_basic(ForwardType::Cuda).unwrap();
+}
 #[cfg(feature = "coreml")]
 #[test]
 fn test_basic_coreml() {

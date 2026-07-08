@@ -267,6 +267,13 @@ where
     pub unsafe fn as_any_tensor(&self) -> &AnyTensorRef {
         unsafe { AnyTensorRef::from_ptr(self.tensor) }
     }
+
+    /// # Safety
+    ///
+    /// Type erase the tensor mutably
+    pub unsafe fn as_any_tensor_mut(&mut self) -> &mut AnyTensorRef {
+        unsafe { AnyTensorRef::from_mut_ptr(self.tensor) }
+    }
 }
 
 impl<H> Tensor<Owned<H>, Host>
@@ -548,6 +555,7 @@ where
         output
     }
 }
+
 impl<'a, A> Tensor<View<&'a mut A>, Host, A>
 where
     A: HalideType,

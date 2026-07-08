@@ -33,6 +33,7 @@ serde = { version = "1.0", features = ["derive"], optional = true }
 metal = ["mnn-sys/metal"]
 coreml = ["mnn-sys/coreml"]
 vulkan = ["mnn-sys/vulkan"]
+cuda = ["mnn-sys/cuda"]
 opencl = ["mnn-sys/opencl"]
 opengl = ["mnn-sys/opengl"]
 crt_static = ["mnn-sys/crt_static"]

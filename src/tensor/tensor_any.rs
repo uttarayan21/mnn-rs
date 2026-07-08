@@ -15,6 +15,10 @@ impl AnyTensorRef {
         unsafe { &*tensor.cast() }
     }
 
+    pub(crate) unsafe fn from_mut_ptr<'s>(tensor: *mut mnn_sys::Tensor) -> &'s mut Self {
+        unsafe { &mut *tensor.cast() }
+    }
+
     /// Get the device id of the tensor
     pub fn device_id(&self) -> u64 {
         unsafe { mnn_sys::Tensor_deviceId(self.as_ptr()) }
@@ -95,28 +99,45 @@ impl AnyTensorRef {
 
     /// Copies the data from the self.as_ptr() to a host tensor
     pub fn copy_to_host_tensor(&self, tensor: &mut AnyTensorRef) -> Result<()> {
-        assert_eq!(self.size(), tensor.size(), "Tensor sizes do not match");
+        // Compare logical shapes, not byte sizes: a packed device layout
+        // (e.g. NC4HW4) is allowed to differ in allocation size from the host
+        // layout it converts into.
+        crate::ensure!(
+            self.shape().as_ref() == tensor.shape().as_ref(),
+            ErrorKind::SizeMismatch {
+                expected: self.element_size(),
+                got: tensor.element_size()
+            }
+        );
         let ret = unsafe { mnn_sys::Tensor_copyToHostTensor(self.as_ptr(), tensor.as_ptr()) };
         crate::ensure!(ret != 0, ErrorKind::TensorCopyFailed(ret));
         Ok(())
     }
 
-    // /// Create a host tensor from the device tensor with same dimensions and data type and
-    // /// optionally copy the data from the device tensor
-    // pub fn create_host_tensor_from_device<T: HalideType>(
-    //     &self,
-    //     copy_data: bool,
-    // ) -> Tensor<Owned<T>, Host> {
-    //     let shape = self.shape();
-    //     let dm_type = self.get_dimension_type();
-    //     let mut out = Tensor::new(shape, dm_type);
-    //
-    //     if copy_data {
-    //         self.copy_to_host_tensor(&mut out)
-    //             .expect("Failed to copy data from device tensor");
-    //     }
-    //     out
-    // }
+    /// Create a host tensor from the device tensor with same dimensions and data type and
+    /// optionally copy the data from the device tensor
+    ///
+    /// # Panics
+    /// Panics if the tensor's element type is not `T` or the copy fails.
+    pub fn create_host_tensor_from_device<T: HalideType + Copy>(
+        &self,
+        copy_data: bool,
+    ) -> Tensor<Owned<T>, Host> {
+        assert!(
+            self.is_type_of::<T>(),
+            "Tensor element type does not match {}",
+            core::any::type_name::<T>()
+        );
+        let shape = self.shape();
+        let dm_type = self.get_dimension_type();
+        let mut out = Tensor::new(shape, dm_type);
+
+        if copy_data {
+            self.copy_to_host_tensor(unsafe { out.as_any_tensor_mut() })
+                .expect("Failed to copy data from device tensor");
+        }
+        out
+    }
 
     /// Try to wait for the device tensor to finish processing
     pub fn wait(this: &Self, map_type: MapType, finish: bool) {

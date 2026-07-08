@@ -105,6 +105,7 @@ impl CxxOption {
     }
 
     pub const VULKAN: CxxOption = cxx_option_from_feature!("vulkan", "MNN_VULKAN");
+    pub const CUDA: CxxOption = cxx_option_from_feature!("cuda", "MNN_CUDA");
     pub const METAL: CxxOption = cxx_option_from_feature!("metal", "MNN_METAL");
     pub const COREML: CxxOption = cxx_option_from_feature!("coreml", "MNN_COREML");
     pub const OPENCL: CxxOption = cxx_option_from_feature!("opencl", "MNN_OPENCL");
