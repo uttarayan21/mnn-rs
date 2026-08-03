@@ -221,6 +221,7 @@
                   cargo-audit
                   cargo-deny
                   cargo-hakari
+                  cargo-make
                   cargo-nextest
                   cargo-semver-checks
                   clang
@@ -232,6 +233,7 @@
                   rustToolchainWithRustAnalyzer
                   mnn
                   ccache
+                  toml-cli
                 ]
                 ++ (
                   lib.optionals pkgs.stdenv.isLinux [
