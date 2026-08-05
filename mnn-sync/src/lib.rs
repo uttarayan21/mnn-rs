@@ -9,10 +9,9 @@
 //! let session_handle = SessionHandle::new(interpreter, config).expect("Failed to create session handle");
 //! std::thread::spawn(move || {
 //!     session_handle.run(|sr| {
-//!         let session = sr.session();
-//!         let interpreter = sr.interpreter();
-//!         let mut input = interpreter.input::<f32>(session, "input")?;
-//!         input.fill(1.0f32);
+//!         let (interpreter, session) = sr.both_mut();
+//!         let input = interpreter.input::<f32>(session, "input")?;
+//!         input.fill(1.0f32)?;
 //!         Ok(())
 //!     }).expect("Failed to run");
 //!     session_handle.run(|sr| {
@@ -196,30 +195,30 @@ impl SessionState {
 /// This is safe since session is not actually bound by Interpreter struct's lifetime but the internal pointer that points to the actual interpreter in C++.
 /// Which we can ensure will outlive the session since we own both of them.
 pub struct SessionRunner {
-    pub interpreter: Interpreter,
+    // Declared before the interpreter so it is dropped first: releasing a
+    // session goes through the interpreter it was created from.
     pub session: Session<'static>,
+    pub interpreter: Interpreter,
 }
 
 impl SessionRunner {
-    pub(crate) fn new(interpreter: Interpreter, session: Session) -> Self {
-        Self {
-            interpreter,
-            session,
-        }
-    }
-
-    pub fn create(mut net: Interpreter, config: ScheduleConfig) -> Result<Self> {
+    pub fn create(net: Interpreter, config: ScheduleConfig) -> Result<Self> {
         #[cfg(feature = "tracing")]
         tracing::trace!("Creating session");
         #[cfg(feature = "tracing")]
         let now = std::time::Instant::now();
         let mut session = net.create_session(config)?;
         net.update_cache_file(&mut session)?;
+        // The session borrows the interpreter, but it only ever dereferences
+        // the C++ interpreter pointer, which is unaffected by moving the Rust
+        // side into this struct. Owning both here keeps the interpreter alive
+        // for at least as long as the session.
+        let session: Session<'static> = unsafe { core::mem::transmute(session) };
         #[cfg(feature = "tracing")]
         tracing::trace!("Session created in {:?}", now.elapsed());
         Ok(Self {
-            interpreter: net,
             session,
+            interpreter: net,
         })
     }
 
@@ -234,7 +233,7 @@ impl SessionRunner {
         self.interpreter.run_session(&self.session)
     }
 
-    pub fn both_mut(&mut self) -> (&mut Interpreter, &mut Session) {
+    pub fn both_mut(&mut self) -> (&mut Interpreter, &mut Session<'static>) {
         (&mut self.interpreter, &mut self.session)
     }
 
@@ -251,11 +250,11 @@ impl SessionRunner {
         &mut self.interpreter
     }
 
-    pub fn session(&self) -> &Session {
+    pub fn session(&self) -> &Session<'_> {
         &self.session
     }
 
-    pub fn session_mut(&mut self) -> &mut Session {
+    pub fn session_mut(&mut self) -> &mut Session<'static> {
         &mut self.session
     }
 
@@ -303,14 +302,14 @@ impl SessionHandle {
                     .attach("Internal Error: Unable to recv (Sender possibly dropped without calling close)")?;
                 match cmd {
                     CallbackEnum::Callback(f) => {
-                        let sr = ss.sr().inspect_err(|e| {
+                        let sr = ss.sr().inspect_err(|_e| {
                             #[cfg(feature = "tracing")]
                             tracing::error!("Error getting the session runtime :{:?}", e);
                         })?;
                         sr.run_callback(f)
                             .map_err(|e| e.into_inner())
                             .attach("Failure running the callback")
-                            .inspect_err(|e| {
+                            .inspect_err(|_e| {
                                 #[cfg(feature = "tracing")]
                                 tracing::error!("Error running callback: {:?}", e);
                             })?;
@@ -506,9 +505,8 @@ pub fn test_sync_api() {
     let my_arr = [1f32; 100];
     session_handle
         .run(move |sr| {
-            let session = sr.session();
-            let interpreter = sr.interpreter();
-            let mut input = interpreter.input::<f32>(session, "input")?;
+            let (interpreter, session) = sr.both_mut();
+            let input = interpreter.input::<f32>(session, "input")?;
             let mut cpu_input = input.create_host_tensor_from_device(false);
             cpu_input.host_mut().copy_from_slice(&my_arr);
             input.copy_from_host_tensor(&cpu_input)?;
@@ -533,6 +531,22 @@ pub fn test_sync_api() {
         .expect("Sed");
 }
 
+#[cfg(test)]
+fn fill_inputs(sr: &mut SessionRunner) {
+    let (interpreter, session) = sr.both_mut();
+    let mut inputs = interpreter.inputs(session);
+    inputs.iter_mut().for_each(|mut x| {
+        let name = x.name();
+        let tensor = x.tensor_mut::<f32>().expect("No tensor");
+        println!("{}: {:?}", name, tensor.shape());
+        let mut cpu_tensor = tensor.create_host_tensor_from_device(false);
+        cpu_tensor.host_mut().fill(1.0f32);
+        tensor
+            .copy_from_host_tensor(&cpu_tensor)
+            .expect("Could not copy tensor");
+    });
+}
+
 #[test]
 #[ignore = "This test is not reliable on CI"]
 pub fn test_sync_api_race() {
@@ -542,18 +556,7 @@ pub fn test_sync_api_race() {
         .expect("Failed to create session handle");
     session_handle
         .run(move |sr| {
-            let mut session = sr.session();
-            let interpreter = sr.interpreter();
-            let mut inputs = interpreter.inputs(&mut session);
-            inputs.iter_mut().for_each(|x| {
-                let mut tensor = x.tensor_mut::<f32>().expect("No tensor");
-                println!("{}: {:?}", x.name(), tensor.shape());
-                let mut cpu_tensor = tensor.create_host_tensor_from_device(false);
-                cpu_tensor.host_mut().fill(1.0f32);
-                tensor
-                    .copy_from_host_tensor(&cpu_tensor)
-                    .expect("Could not copy tensor");
-            });
+            fill_inputs(sr);
             Ok(())
         })
         .expect("Failed to run");
@@ -566,35 +569,13 @@ pub fn test_sync_api_race() {
         .expect("Failed to run");
     session_handle
         .run(move |sr| {
-            let session = sr.session();
-            let interpreter = sr.interpreter();
-            let inputs = interpreter.inputs(session);
-            inputs.iter().for_each(|x| {
-                let mut tensor = x.tensor::<f32>().expect("No tensor");
-                println!("{}: {:?}", x.name(), tensor.shape());
-                let mut cpu_tensor = tensor.create_host_tensor_from_device(false);
-                cpu_tensor.host_mut().fill(1.0f32);
-                tensor
-                    .copy_from_host_tensor(&cpu_tensor)
-                    .expect("Could not copy tensor");
-            });
+            fill_inputs(sr);
             Ok(())
         })
         .expect("Failed to run");
     session_handle
         .run(move |sr| {
-            let session = sr.session();
-            let interpreter = sr.interpreter();
-            let inputs = interpreter.inputs(session);
-            inputs.iter().for_each(|x| {
-                let mut tensor = x.tensor::<f32>().expect("No tensor");
-                println!("{}: {:?}", x.name(), tensor.shape());
-                let mut cpu_tensor = tensor.create_host_tensor_from_device(false);
-                cpu_tensor.host_mut().fill(1.0f32);
-                tensor
-                    .copy_from_host_tensor(&cpu_tensor)
-                    .expect("Could not copy tensor");
-            });
+            fill_inputs(sr);
             Ok(())
         })
         .expect("Failed to run");
@@ -629,11 +610,13 @@ pub fn test_load_unload() {
         .expect("Failed to create session handle");
     session_handle
         .run(|sr| {
-            for input in sr.interpreter.inputs(sr.session()).iter() {
+            let (interpreter, session) = sr.both_mut();
+            for mut input in interpreter.inputs(session).iter_mut() {
                 input
-                    .tensor::<f32>()
+                    .tensor_mut::<f32>()
                     .expect("Failed to get tensor")
-                    .fill(1.0f32);
+                    .fill(1.0f32)
+                    .expect("Failed to fill tensor");
             }
             Ok(())
         })
